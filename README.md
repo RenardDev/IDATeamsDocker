@@ -1,5 +1,5 @@
 # IDATeamsDocker
-Docker configuration (and only docker configuration) files for hosting self-hosted Lumina and Hexvault.
+Docker configuration (and only docker configuration) files for hosting self-hosted Lumina and Hexvault. The installation files should be in ./image folders.
 
 # Note
 Before you start doing anything, you need to generate your own CA certificate. This can be done like this:
