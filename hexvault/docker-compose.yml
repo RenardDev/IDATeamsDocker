@@ -1,0 +1,13 @@
+
+services:
+  hexvault:
+    container_name: hexvault
+    build: ./image
+    restart: always
+    environment:
+      VAULT_HOST: reversing.renarddev.com
+    volumes:
+      - ./data/CA/:/opt/hexvault/CA/
+      - ./data/files/:/opt/hexvault/files/
+    ports:
+      - "65433:65433"

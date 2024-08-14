@@ -1,0 +1,47 @@
+
+services:
+  db:
+    container_name: db
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: lumina
+      MYSQL_DATABASE: lumina
+      MYSQL_USER: lumina
+      MYSQL_PASSWORD: lumina
+    volumes:
+      - ./db_data/:/var/lib/mysql/
+    ports:
+      - "3306:3306"
+
+  lumina:
+    container_name: lumina
+    depends_on:
+      - db
+    build: ./image
+    restart: always
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: lumina
+      MYSQL_USER: lumina
+      MYSQL_PASSWORD: lumina
+      LUMINA_HOST: reversing.renarddev.com
+      LUMINA_PORT: 443
+      VAULT_HOST: reversing.renarddev.com
+      VAULT_PORT: 65433
+    volumes:
+      - ./data/CA/:/opt/lumina/CA/
+    ports:
+      - "443:443"
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    depends_on:
+      - db
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: lumina
+    ports:
+      - "8080:80"
