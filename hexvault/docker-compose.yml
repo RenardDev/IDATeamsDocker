@@ -5,7 +5,7 @@ services:
     build: ./image
     restart: always
     environment:
-      VAULT_HOST: reversing.renarddev.com
+      VAULT_HOST: reversing.example.com
     volumes:
       - ./data/CA/:/opt/hexvault/CA/
       - ./data/files/:/opt/hexvault/files/

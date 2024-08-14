@@ -25,9 +25,9 @@ services:
       MYSQL_DATABASE: lumina
       MYSQL_USER: lumina
       MYSQL_PASSWORD: lumina
-      LUMINA_HOST: reversing.renarddev.com
+      LUMINA_HOST: reversing.example.com
       LUMINA_PORT: 443
-      VAULT_HOST: reversing.renarddev.com
+      VAULT_HOST: reversing.example.com
       VAULT_PORT: 65433
     volumes:
       - ./data/CA/:/opt/lumina/CA/
