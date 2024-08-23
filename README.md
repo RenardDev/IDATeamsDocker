@@ -29,3 +29,10 @@ Lumina requires hexvault because it stores all the file history (similar to SVN 
 2. Copy CA.key and CA.pem to the CA folder (./data/CA)
 3. `sudo docker-compose up -d`
 4. Enjoy
+
+# How to set up Lumina client on IDA
+You need to apply these registry values.
+```
+[HKEY_CURRENT_USER\SOFTWARE\Hex-Rays\IDA\Lumina]
+"Primary"="<hexvault username>:<hexvault passwords>@reversing.example.com"
+```
