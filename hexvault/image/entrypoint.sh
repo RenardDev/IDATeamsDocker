@@ -1,14 +1,13 @@
 #!/bin/bash
 
 INSTALL_PATH="/opt/hexvault"
-LUMINA_CONF="${INSTALL_PATH}/hexvault.conf"
-SCHEMA_FLAG="${INSTALL_PATH}/schema_created.flag"
+ONCE_FLAG="${INSTALL_PATH}/CA/once.flag"
 
 VAULT_HOST=${VAULT_HOST:-localhost}
 
 cd "$INSTALL_PATH"
 
-if [ ! -f "$SCHEMA_FLAG" ]; then
+if [ ! -f "$ONCE_FLAG" ]; then
     # Generating CA if not exist
     if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ]; then
         openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
@@ -22,7 +21,7 @@ if [ ! -f "$SCHEMA_FLAG" ]; then
 
     "${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexvault.conf" -d "${INSTALL_PATH}/files/store" --recreate-schema
 
-    touch "$SCHEMA_FLAG"
+    touch "$ONCE_FLAG"
 fi
 
 # Generating TLS chain
