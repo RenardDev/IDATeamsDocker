@@ -2,8 +2,9 @@
 
 INSTALL_PATH="/opt/lumina"
 LUMINA_CONF="${INSTALL_PATH}/lumina.conf"
-ONCE_FLAG="${INSTALL_PATH}/CA/once.flag"
+SCHEMA_LOCK="${INSTALL_PATH}/schema.lock"
 
+SKIP_RECREATE_SCHEMA=${SKIP_RECREATE_SCHEMA:-N}
 MYSQL_HOST=${MYSQL_HOST:-localhost}
 MYSQL_PORT=${MYSQL_PORT:-3306}
 MYSQL_DATABASE=${MYSQL_DATABASE:-lumina}
@@ -31,7 +32,7 @@ CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=
 VAULT_HOST="$VAULT_HOST:$VAULT_PORT"
 EOL
 
-if [ ! -f "$ONCE_FLAG" ]; then
+if [ ! -f "$SCHEMA_LOCK" ]; then
     # Generating CA if not exist
     if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ]; then
         openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
@@ -44,9 +45,11 @@ if [ ! -f "$ONCE_FLAG" ]; then
     chown root:root "${INSTALL_PATH}/lc" "${INSTALL_PATH}/lumina_server_teams"
     chmod 755 "${INSTALL_PATH}/lc" "${INSTALL_PATH}/lumina_server_teams"
 
-    "${INSTALL_PATH}/lumina_server_teams" -f "$LUMINA_CONF" --recreate-schema
+    if [ ! "$SKIP_RECREATE_SCHEMA" = "y" ] && [ ! "$SKIP_RECREATE_SCHEMA" = "Y" ]; then
+        "${INSTALL_PATH}/lumina_server_teams" -f "$LUMINA_CONF" --recreate-schema
+    fi
 
-    touch "$ONCE_FLAG"
+    touch "$SCHEMA_LOCK"
 fi
 
 # Generating TLS chain

@@ -5,6 +5,7 @@ services:
     build: ./image
     restart: always
     environment:
+      SKIP_RECREATE_SCHEMA: N
       VAULT_HOST: reversing.example.com
     volumes:
       - ./data/CA/:/opt/hexvault/CA/

@@ -21,6 +21,7 @@ services:
     build: ./image
     restart: always
     environment:
+      SKIP_RECREATE_SCHEMA: N
       MYSQL_HOST: db
       MYSQL_DATABASE: lumina
       MYSQL_USER: lumina

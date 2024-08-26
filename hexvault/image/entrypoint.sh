@@ -1,13 +1,14 @@
 #!/bin/bash
 
 INSTALL_PATH="/opt/hexvault"
-ONCE_FLAG="${INSTALL_PATH}/CA/once.flag"
+SCHEMA_LOCK="${INSTALL_PATH}/schema.lock"
 
+SKIP_RECREATE_SCHEMA=${SKIP_RECREATE_SCHEMA:-N}
 VAULT_HOST=${VAULT_HOST:-localhost}
 
 cd "$INSTALL_PATH"
 
-if [ ! -f "$ONCE_FLAG" ]; then
+if [ ! -f "$SCHEMA_LOCK" ]; then
     # Generating CA if not exist
     if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ]; then
         openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
@@ -19,9 +20,11 @@ if [ ! -f "$ONCE_FLAG" ]; then
     chown root:root "${INSTALL_PATH}/vault_server"
     chmod 755 "${INSTALL_PATH}/vault_server"
 
-    "${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexvault.conf" -d "${INSTALL_PATH}/files/store" --recreate-schema
+    if [ ! "$SKIP_RECREATE_SCHEMA" = "y" ] && [ ! "$SKIP_RECREATE_SCHEMA" = "Y" ]; then
+        "${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexvault.conf" -d "${INSTALL_PATH}/files/store" --recreate-schema
+    fi
 
-    touch "$ONCE_FLAG"
+    touch "$SCHEMA_LOCK"
 fi
 
 # Generating TLS chain
