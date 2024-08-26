@@ -2,7 +2,7 @@
 
 INSTALL_PATH="/opt/lumina"
 LUMINA_CONF="${INSTALL_PATH}/lumina.conf"
-SCHEMA_FLAG="${INSTALL_PATH}/schema_created.flag"
+ONCE_FLAG="${INSTALL_PATH}/CA/once.flag"
 
 MYSQL_HOST=${MYSQL_HOST:-localhost}
 MYSQL_PORT=${MYSQL_PORT:-3306}
@@ -31,7 +31,7 @@ CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=
 VAULT_HOST="$VAULT_HOST:$VAULT_PORT"
 EOL
 
-if [ ! -f "$SCHEMA_FLAG" ]; then
+if [ ! -f "$ONCE_FLAG" ]; then
     # Generating CA if not exist
     if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ]; then
         openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
@@ -46,7 +46,7 @@ if [ ! -f "$SCHEMA_FLAG" ]; then
 
     "${INSTALL_PATH}/lumina_server_teams" -f "$LUMINA_CONF" --recreate-schema
 
-    touch "$SCHEMA_FLAG"
+    touch "$ONCE_FLAG"
 fi
 
 # Generating TLS chain
@@ -71,7 +71,7 @@ cp "${INSTALL_PATH}/server.key" "${INSTALL_PATH}/lumina.key"
 chown lumina:lumina "${INSTALL_PATH}/lumina.crt" "${INSTALL_PATH}/lumina.key" "${INSTALL_PATH}/luminasrv.hexlic"
 chmod 640 "${INSTALL_PATH}/lumina.crt" "${INSTALL_PATH}/lumina.key" "${INSTALL_PATH}/luminasrv.hexlic"
 
-"${INSTALL_PATH}/lumina_server_teams" -f "${INSTALL_PATH}/lumina.conf" \
+"${INSTALL_PATH}/lumina_server_teams" -f "$LUMINA_CONF" \
     -p "$LUMINA_PORT" \
     -D "${INSTALL_PATH}/badreqs" \
     -l "${INSTALL_PATH}/logs/lumina_server.log" \
