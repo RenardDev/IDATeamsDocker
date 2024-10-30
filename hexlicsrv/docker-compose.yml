@@ -1,0 +1,14 @@
+
+services:
+  hexlicsrv:
+    container_name: hexlicsrv
+    build: ./image
+    restart: always
+    environment:
+      LICENSE_HOST: reversing.example.com
+    volumes:
+      - ./data/CA/:/opt/hexlicsrv/CA/
+      - ./data/logs/:/opt/hexlicsrv/logs/
+      - ./data/files/:/opt/hexlicsrv/files/
+    ports:
+      - "65434:65434"
