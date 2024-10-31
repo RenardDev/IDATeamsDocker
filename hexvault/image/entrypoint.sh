@@ -39,7 +39,7 @@ chmod 755 "${INSTALL_PATH}/vault_server"
 
 # Recreate schema if not already done
 if [[ ! -f "$SCHEMA_LOCK" ]]; then
-    "${INSTALL_PATH}/vault_server" -f "$CONFIG_FILE" -d "${DATA_PATH}/store" --recreate-schema
+    "${INSTALL_PATH}/vault_server" -f "$CONFIG_FILE" -d "$DATA_PATH" --recreate-schema
     touch "$SCHEMA_LOCK"
 fi
 
