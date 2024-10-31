@@ -12,8 +12,6 @@ MYSQL_USER=${MYSQL_USER:-lumina}
 MYSQL_PASSWORD=${MYSQL_PASSWORD:-lumina}
 LUMINA_HOST=${LUMINA_HOST:-localhost}
 LUMINA_PORT=${LUMINA_PORT:-443}
-VAULT_HOST=${VAULT_HOST:-localhost}
-VAULT_PORT=${VAULT_PORT:-65433}
 
 cd "$INSTALL_PATH"
 
@@ -31,10 +29,16 @@ wait_for_db
 
 # Save database
 
-cat > "$LUMINA_CONF" <<EOL
-CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_PASSWORD"
+if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
+    cat > "$LUMINA_CONF" <<EOL
+CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_PASSWORD;"
 VAULT_HOST="$VAULT_HOST:$VAULT_PORT"
 EOL
+else
+    cat > "$LUMINA_CONF" <<EOL
+CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_PASSWORD;"
+EOL
+fi
 
 chmod 640 "$LUMINA_CONF"
 
@@ -58,7 +62,11 @@ chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 if [ ! -f "$SCHEMA_LOCK" ]; then
 
     if [ ! "$SKIP_RECREATE_SCHEMA" = "y" ] && [ ! "$SKIP_RECREATE_SCHEMA" = "Y" ]; then
-        "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema
+        if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
+            "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema vault
+        else
+            "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema lumina
+        fi
     fi
 
     touch "$SCHEMA_LOCK"

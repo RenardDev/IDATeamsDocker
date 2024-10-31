@@ -2,7 +2,7 @@
 services:
   db:
     container_name: db
-    image: mysql:5.7
+    image: mysql:8.0.40
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: lumina
@@ -11,6 +11,7 @@ services:
       MYSQL_PASSWORD: lumina
     volumes:
       - ./db_data/:/var/lib/mysql/
+      - ./my.cnf:/etc/mysql/my.cnf
     ports:
       - "3306:3306"
 
