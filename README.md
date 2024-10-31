@@ -3,7 +3,7 @@ Docker configuration (and only docker configuration) files for hosting self-host
 
 Supported version: [IDA 9.0.240925 September 30, 2024](https://docs.hex-rays.com/release-notes/9_0)
 
-# Note
+# CA (NOTE)
 Before you start doing anything, you need to generate your own CA certificate. This can be done like this:
 ```bash
 openssl req -x509 -newkey rsa:4096 -sha512 \
@@ -45,3 +45,6 @@ Now you have two files (the key and the certificate itself), you need to place t
 5. Edit `docker-compose.yml`. (You need to edit `LICENSE_HOST` for TLS)
 6. `sudo docker-compose up -d`
 7. Enjoy
+
+# NOTE
+The *_schema.lock flag file is an indicator to the container when it is time to run a schema recreate using --recreate-schema. As long as this file exists, the container will not run a schema recreate.
