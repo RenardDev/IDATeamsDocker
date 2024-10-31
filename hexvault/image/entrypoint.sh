@@ -28,6 +28,8 @@ sqlite3;Data Source=/opt/hexvault/data/hexvault.sqlite3;
 EOL
 fi
 
+chmod 640 "${CONFIG_PATH}/hexvault.conf"
+
 # Checking CA
 
 if [ ! -f "${CA_PATH}/CA.pem" ] || [ ! -f "${CA_PATH}/CA.key" ]; then

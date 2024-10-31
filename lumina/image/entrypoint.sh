@@ -49,9 +49,10 @@ EOL
         cat > "${CONFIG_PATH}/lumina.conf" <<EOL
 CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_PASSWORD;"
 EOL
+    fi
 fi
 
-chmod 640 "$LUMINA_CONF"
+chmod 640 "${CONFIG_PATH}/lumina.conf"
 
 # Checking CA
 
@@ -72,9 +73,9 @@ chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 
 if [ ! -f "$SCHEMA_LOCK" ]; then
     if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
-        "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema vault
+        "${INSTALL_PATH}/lumina_server" -f "${CONFIG_PATH}/lumina.conf" --recreate-schema vault
     else
-        "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema lumina
+        "${INSTALL_PATH}/lumina_server" -f "${CONFIG_PATH}/lumina.conf" --recreate-schema lumina
     fi
 
     touch "$SCHEMA_LOCK"
@@ -96,7 +97,7 @@ DNS.1 = "$LUMINA_HOST"
 EOF
 )
 
-rm "${CONFIG_PATH}/server.csr"
+rm "${CONFIG_PATH}/lumina.csr"
 
 # Fixing Owner and Rights
 

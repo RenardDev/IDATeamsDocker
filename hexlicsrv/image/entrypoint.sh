@@ -28,6 +28,8 @@ sqlite3;Data Source=/opt/hexlicsrv/data/hexlicsrv.sqlite3;
 EOL
 fi
 
+chmod 640 "${CONFIG_PATH}/hexlicsrv.conf"
+
 # Checking CA
 
 if [ ! -f "${CA_PATH}/CA.pem" ] || [ ! -f "${CA_PATH}/CA.key" ]; then
