@@ -34,7 +34,7 @@ services:
       VAULT_HOST: reversing.example.com
       VAULT_PORT: 65433
     volumes:
-      - ./CA:/opt/lumina/CA:ro
+      - ./CA:/opt/lumina/CA
       - ./config:/opt/lumina/config
       - ./logs:/opt/lumina/logs
       - ./data:/opt/lumina/data

@@ -9,7 +9,7 @@ services:
       - LICENSE_HOST=reversing.example.com
       - LICENSE_PORT=65434 # Optional; Default: 65434
     volumes:
-      - ./CA:/opt/hexlicsrv/CA:ro
+      - ./CA:/opt/hexlicsrv/CA
       - ./config:/opt/hexlicsrv/config
       - ./logs:/opt/hexlicsrv/logs
       - ./data:/opt/hexlicsrv/data

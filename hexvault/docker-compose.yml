@@ -9,7 +9,7 @@ services:
       - VAULT_HOST=reversing.example.com
       - VAULT_PORT=65433 # Optional; Default: 65433
     volumes:
-      - ./CA:/opt/hexvault/CA:ro
+      - ./CA:/opt/hexvault/CA
       - ./config:/opt/hexvault/config
       - ./logs:/opt/hexvault/logs
       - ./data:/opt/hexvault/data
