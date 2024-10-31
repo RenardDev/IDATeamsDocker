@@ -71,8 +71,8 @@ rm "${CONFIG_PATH}/hexlicsrv.csr"
 
 # Fixing owner and rights
 
-# chown hexlicsrv:hexlicsrv "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
-chmod 640 "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
+# chown hexlicsrv:hexlicsrv "${CONFIG_PATH}/hexlicsrv.conf" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
+chmod 640 "${CONFIG_PATH}/hexlicsrv.conf" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 
 # Run
 

@@ -71,8 +71,8 @@ rm "${CONFIG_PATH}/hexvault.csr"
 
 # Fixing owner and rights
 
-# chown hexvault:hexvault "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
-chmod 640 "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
+# chown hexvault:hexvault "${CONFIG_PATH}/hexvault.conf" "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
+chmod 640 "${CONFIG_PATH}/hexvault.conf" "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
 
 # Run
 

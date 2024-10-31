@@ -100,8 +100,8 @@ rm "${CONFIG_PATH}/server.csr"
 
 # Fixing Owner and Rights
 
-chown lumina:lumina "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
-chmod 640 "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
+chown lumina:lumina "${CONFIG_PATH}/lumina.conf" "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
+chmod 640 "${CONFIG_PATH}/lumina.conf" "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
 
 # Run
 
