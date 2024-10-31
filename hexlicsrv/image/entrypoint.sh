@@ -8,22 +8,25 @@ LICENSE_PORT=${LICENSE_PORT:-65434}
 
 cd "$INSTALL_PATH"
 
-# Generating CA if not exist
+# Checking CA
 
-if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ]; then
-    openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
+if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ] || [ ! -f "${INSTALL_PATH}/CA/CA.key" ]; then
+    # openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
+    echo "ERROR: Unable to find certification authority!"
+    sleep 5
+    exit 1
 fi
 
 # Patching
 
 python3 "${INSTALL_PATH}/patch.py" hexlicsrv
-chown root:root "${INSTALL_PATH}/license_server"
-chmod 755 "${INSTALL_PATH}/license_server"
+chown root:root "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
+chmod 755 "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 
 # ReCreate schema
 
 if [ ! -f "$SCHEMA_LOCK" ]; then
-    "${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexlicsrv.conf" -d "${INSTALL_PATH}/files/store" --recreate-schema
+    "${INSTALL_PATH}/license_server" -f "${INSTALL_PATH}/hexvault.conf" --recreate-schema
     touch "$SCHEMA_LOCK"
 fi
 
@@ -50,7 +53,7 @@ mv "${INSTALL_PATH}/server.key" "${INSTALL_PATH}/hexlicsrv.key"
 
 # Fixing owner and rights
 
-chown hexlicsrv:hexlicsrv "${INSTALL_PATH}/hexlicsrv.crt" "${INSTALL_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
+# chown hexlicsrv:hexlicsrv "${INSTALL_PATH}/hexlicsrv.crt" "${INSTALL_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 chmod 640 "${INSTALL_PATH}/hexlicsrv.crt" "${INSTALL_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 
 # Run
