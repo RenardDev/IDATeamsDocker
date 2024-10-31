@@ -1,6 +1,8 @@
 # IDATeamsDocker
 Docker configuration (and only docker configuration) files for hosting self-hosted Hexvault, Lumina and Hexlicsrv. The installation files should be in `./image` folders.
 
+Supported version: [IDA 9.0.240925 September 30, 2024](https://docs.hex-rays.com/release-notes/9_0)
+
 # Note
 Before you start doing anything, you need to generate your own CA certificate. This can be done like this:
 ```bash
