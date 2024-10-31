@@ -68,8 +68,7 @@ EOF
 # Clean up certificate request file
 rm -f "${CONFIG_PATH}/hexlicsrv.csr"
 
-# Set ownership and permissions
-chown hexlicsrv:hexlicsrv "$CONFIG_FILE" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
+# Set permissions
 chmod 640 "$CONFIG_FILE" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 
 # Start the license server
