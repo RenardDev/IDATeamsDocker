@@ -158,8 +158,11 @@ def generate_license_package(version: int, name: str, email: str, licenses: list
 
         return data
 
-def to_alphabetical_json(obj):
-    return json.dumps(obj, sort_keys=True, separators=(',', ':'))
+def to_alphabetical_json(d: dict) -> str:
+    return json.dumps(d, sort_keys=True, separators=(',', ':'))
+
+def from_alphabetical_json(s: str) -> dict:
+    return json.loads(s)
 
 def sign_license_package(license: dict, private_key: int, public_key: int) -> str:
     data = { 'payload': license['payload'] }
@@ -335,6 +338,16 @@ def main(argv: list) -> int:
             for file in files:
                 patch_file(CURRENT_DIRECTORY.joinpath(file))
 
+        license_path = CURRENT_DIRECTORY.joinpath('idapro.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+        if is_valid_license:
+            return 0
+
         # Set up
 
         start_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -381,13 +394,23 @@ def main(argv: list) -> int:
         # File
 
         serialized = to_alphabetical_json(license_package)
-        with open(CURRENT_DIRECTORY.joinpath('idapro.hexlic'), 'w') as f:
+        with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')
 
     if 'hexvault' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('vault_server'))
+
+        license_path = CURRENT_DIRECTORY.joinpath('teams_server.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+        if is_valid_license:
+            return 0
 
         # Set up
 
@@ -426,15 +449,24 @@ def main(argv: list) -> int:
         # File
 
         serialized = to_alphabetical_json(license_package)
-        with open(CURRENT_DIRECTORY.joinpath('teams_server.hexlic'), 'w') as f:
+        with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')
-
 
     if 'lumina' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('lumina_server'))
             patch_file(CURRENT_DIRECTORY.joinpath('lc'))
+
+        license_path = CURRENT_DIRECTORY.joinpath('lumina_server.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+        if is_valid_license:
+            return 0
 
         # Set up
 
@@ -473,7 +505,7 @@ def main(argv: list) -> int:
         # File
 
         serialized = to_alphabetical_json(license_package)
-        with open(CURRENT_DIRECTORY.joinpath('lumina_server.hexlic'), 'w') as f:
+        with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')
 
@@ -481,6 +513,16 @@ def main(argv: list) -> int:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('license_server'))
             patch_file(CURRENT_DIRECTORY.joinpath('lsadm'))
+
+        license_path = CURRENT_DIRECTORY.joinpath('license_server.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+        if is_valid_license:
+            return 0
 
         # Set up
 
@@ -531,7 +573,7 @@ def main(argv: list) -> int:
         # File
 
         serialized = to_alphabetical_json(license_package)
-        with open(CURRENT_DIRECTORY.joinpath('license_server.hexlic'), 'w') as f:
+        with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')
 

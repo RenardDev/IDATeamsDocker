@@ -162,7 +162,7 @@ def to_alphabetical_json(d: dict) -> str:
     return json.dumps(d, sort_keys=True, separators=(',', ':'))
 
 def from_alphabetical_json(s: str) -> dict:
-    return json.loads(s, sort_keys=True, separators=(',', ':'))
+    return json.loads(s)
 
 def sign_license_package(license: dict, private_key: int, public_key: int) -> str:
     data = { 'payload': license['payload'] }
