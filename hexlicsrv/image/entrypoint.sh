@@ -3,7 +3,8 @@
 INSTALL_PATH="/opt/hexlicsrv"
 SCHEMA_LOCK="${INSTALL_PATH}/files/schema.lock"
 
-LICENSE_HOST=${VAULT_HOST:-localhost}
+LICENSE_HOST=${LICENSE_HOST:-localhost}
+LICENSE_PORT=${LICENSE_PORT:-65434}
 
 cd "$INSTALL_PATH"
 
@@ -55,6 +56,7 @@ chmod 640 "${INSTALL_PATH}/hexlicsrv.crt" "${INSTALL_PATH}/hexlicsrv.key" "${INS
 # Run
 
 "${INSTALL_PATH}/license_server" -f "${INSTALL_PATH}/hexlicsrv.conf" \
+    -p "$LICENSE_PORT" \
     -l "${INSTALL_PATH}/logs/license_server.log" \
     -c "${INSTALL_PATH}/hexlicsrv.crt" \
     -k "${INSTALL_PATH}/hexlicsrv.key" \

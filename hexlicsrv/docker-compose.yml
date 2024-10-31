@@ -6,6 +6,7 @@ services:
     restart: always
     environment:
       LICENSE_HOST: reversing.example.com
+      LICENSE_PORT: 65434 # Optional; Default: 65434
     volumes:
       - ./data/CA/:/opt/hexlicsrv/CA/
       - ./data/logs/:/opt/hexlicsrv/logs/

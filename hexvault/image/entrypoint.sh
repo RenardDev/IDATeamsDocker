@@ -4,6 +4,7 @@ INSTALL_PATH="/opt/hexvault"
 SCHEMA_LOCK="${INSTALL_PATH}/files/schema.lock"
 
 VAULT_HOST=${VAULT_HOST:-localhost}
+VAULT_PORT=${VAULT_PORT:-65433}
 
 cd "$INSTALL_PATH"
 
@@ -58,6 +59,7 @@ chmod 640 "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTA
 # Run
 
 "${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexvault.conf" \
+    -p "$VAULT_PORT" \
     -l "${INSTALL_PATH}/logs/vault_server.log" \
     -c "${INSTALL_PATH}/hexvault.crt" \
     -k "${INSTALL_PATH}/hexvault.key" \
