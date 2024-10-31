@@ -2,15 +2,16 @@
 services:
   hexlicsrv:
     container_name: hexlicsrv
-    build: ./image
+    build:
+      context: ./image
     restart: always
     environment:
-      LICENSE_HOST: reversing.example.com
-      LICENSE_PORT: 65434 # Optional; Default: 65434
+      - LICENSE_HOST=reversing.example.com
+      - LICENSE_PORT=65434 # Optional; Default: 65434
     volumes:
-      - ./CA/:/opt/hexlicsrv/CA/
-      - ./config/:/opt/hexlicsrv/config/
-      - ./logs/:/opt/hexlicsrv/logs/
-      - ./data/:/opt/hexlicsrv/data/
+      - ./CA:/opt/hexlicsrv/CA:ro
+      - ./config:/opt/hexlicsrv/config
+      - ./logs:/opt/hexlicsrv/logs
+      - ./data:/opt/hexlicsrv/data
     ports:
       - "65434:65434"

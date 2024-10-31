@@ -10,8 +10,8 @@ services:
       MYSQL_USER: lumina
       MYSQL_PASSWORD: lumina
     volumes:
-      - ./db_data/:/var/lib/mysql/
-      - ./my.cnf:/etc/mysql/my.cnf
+      - ./db_data:/var/lib/mysql
+      - ./my.cnf:/etc/mysql/my.cnf:ro
     ports:
       - "3306:3306"
 
@@ -19,7 +19,8 @@ services:
     container_name: lumina
     depends_on:
       - db
-    build: ./image
+    build:
+      context: ./image
     restart: always
     environment:
       MYSQL_HOST: db
@@ -29,14 +30,14 @@ services:
       LUMINA_HOST: reversing.example.com
       LUMINA_PORT: 443 # Optional; Default: 443
 
-      # Optional. For Vault integration:
+      # Optional Vault integration
       VAULT_HOST: reversing.example.com
       VAULT_PORT: 65433
     volumes:
-      - ./CA/:/opt/lumina/CA/
-      - ./config/:/opt/lumina/config/
-      - ./logs/:/opt/lumina/logs/
-      - ./data/:/opt/lumina/data/
+      - ./CA:/opt/lumina/CA:ro
+      - ./config:/opt/lumina/config
+      - ./logs:/opt/lumina/logs
+      - ./data:/opt/lumina/data
     ports:
       - "443:443"
 

@@ -2,15 +2,16 @@
 services:
   hexvault:
     container_name: hexvault
-    build: ./image
+    build:
+      context: ./image
     restart: always
     environment:
-      VAULT_HOST: reversing.example.com
-      VAULT_PORT: 65433 # Optional; Default: 65433
+      - VAULT_HOST=reversing.example.com
+      - VAULT_PORT=65433 # Optional; Default: 65433
     volumes:
-      - ./CA/:/opt/hexvault/CA/
-      - ./config/:/opt/hexvault/config/
-      - ./logs/:/opt/hexvault/logs/
-      - ./data/:/opt/hexvault/data/
+      - ./CA:/opt/hexvault/CA:ro
+      - ./config:/opt/hexvault/config
+      - ./logs:/opt/hexvault/logs
+      - ./data:/opt/hexvault/data
     ports:
       - "65433:65433"
