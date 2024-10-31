@@ -1,10 +1,20 @@
 #!/bin/bash
 
-INSTALL_PATH="/opt/lumina"
-LUMINA_CONF="${INSTALL_PATH}/lumina.conf"
-SCHEMA_LOCK="${INSTALL_PATH}/schema.lock"
+# Installation
 
-SKIP_RECREATE_SCHEMA=${SKIP_RECREATE_SCHEMA:-N}
+INSTALL_PATH="/opt/lumina"
+
+# General definitions
+
+CA_PATH="${INSTALL_PATH}/CA"
+CONFIG_PATH="${INSTALL_PATH}/config"
+LOGS_PATH="${INSTALL_PATH}/logs"
+DATA_PATH="${INSTALL_PATH}/data"
+
+SCHEMA_LOCK="${CONFIG_PATH}/lumina_schema.lock"
+
+# Vars
+
 MYSQL_HOST=${MYSQL_HOST:-localhost}
 MYSQL_PORT=${MYSQL_PORT:-3306}
 MYSQL_DATABASE=${MYSQL_DATABASE:-lumina}
@@ -27,15 +37,16 @@ wait_for_db() {
 
 wait_for_db
 
-# Save database
+# ReSave config
 
-if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
-    cat > "$LUMINA_CONF" <<EOL
+if [[ ! -e "${CONFIG_PATH}/lumina.conf" ]]; then
+    if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
+        cat > "${CONFIG_PATH}/lumina.conf" <<EOL
 CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_PASSWORD;"
 VAULT_HOST="$VAULT_HOST:$VAULT_PORT"
 EOL
-else
-    cat > "$LUMINA_CONF" <<EOL
+    else
+        cat > "${CONFIG_PATH}/lumina.conf" <<EOL
 CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_PASSWORD;"
 EOL
 fi
@@ -44,8 +55,8 @@ chmod 640 "$LUMINA_CONF"
 
 # Checking CA
 
-if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ] || [ ! -f "${INSTALL_PATH}/CA/CA.key" ]; then
-    # openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
+if [ ! -f "${CA_PATH}/CA.pem" ] || [ ! -f "${CA_PATH}/CA.key" ]; then
+    # openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${CA_PATH}/CA.key" -out "${CA_PATH}/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
     echo "ERROR: Unable to find certification authority!"
     sleep 5
     exit 1
@@ -60,13 +71,10 @@ chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 # ReCreate schema
 
 if [ ! -f "$SCHEMA_LOCK" ]; then
-
-    if [ ! "$SKIP_RECREATE_SCHEMA" = "y" ] && [ ! "$SKIP_RECREATE_SCHEMA" = "Y" ]; then
-        if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
-            "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema vault
-        else
-            "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema lumina
-        fi
+    if [[ -n "${VAULT_HOST}" && -n "${VAULT_PORT}" ]]; then
+        "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema vault
+    else
+        "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema lumina
     fi
 
     touch "$SCHEMA_LOCK"
@@ -74,8 +82,8 @@ fi
 
 # Generating TLS chain
 
-openssl req -newkey rsa:2048 -keyout "${INSTALL_PATH}/server.key" -out "${INSTALL_PATH}/server.csr" -nodes -subj "/CN=${LUMINA_HOST}"
-openssl x509 -req -in "${INSTALL_PATH}/server.csr" -CA "${INSTALL_PATH}/CA/CA.pem" -CAkey "${INSTALL_PATH}/CA/CA.key" -CAcreateserial -out "${INSTALL_PATH}/server.crt" -days 365 -sha512 -extfile <(cat <<EOF
+openssl req -newkey rsa:2048 -keyout "${CONFIG_PATH}/lumina.key" -out "${CONFIG_PATH}/lumina.csr" -nodes -subj "/CN=${LUMINA_HOST}"
+openssl x509 -req -in "${CONFIG_PATH}/lumina.csr" -CA "${CA_PATH}/CA.pem" -CAkey "${CA_PATH}/CA.key" -CAcreateserial -out "${CONFIG_PATH}/lumina.crt" -days 365 -sha512 -extfile <(cat <<EOF
 [req]
 distinguished_name=req_distinguished_name
 [req_distinguished_name]
@@ -88,24 +96,21 @@ DNS.1 = "$LUMINA_HOST"
 EOF
 )
 
-rm "${INSTALL_PATH}/server.csr"
-
-mv "${INSTALL_PATH}/server.crt" "${INSTALL_PATH}/lumina.crt"
-mv "${INSTALL_PATH}/server.key" "${INSTALL_PATH}/lumina.key"
+rm "${CONFIG_PATH}/server.csr"
 
 # Fixing Owner and Rights
 
-chown lumina:lumina "${INSTALL_PATH}/lumina.crt" "${INSTALL_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
-chmod 640 "${INSTALL_PATH}/lumina.crt" "${INSTALL_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
+chown lumina:lumina "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
+chmod 640 "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
 
 # Run
 
-"${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" \
+"${INSTALL_PATH}/lumina_server" -f "${CONFIG_PATH}/lumina.conf" \
     -p "$LUMINA_PORT" \
-    -D "${INSTALL_PATH}/badreqs" \
-    -l "${INSTALL_PATH}/logs/lumina_server.log" \
-    -c "${INSTALL_PATH}/lumina.crt" \
-    -k "${INSTALL_PATH}/lumina.key" \
+    -D "${DATA_PATH}" \
+    -l "${LOGS_PATH}/lumina_server.log" \
+    -c "${CONFIG_PATH}/lumina.crt" \
+    -k "${CONFIG_PATH}/lumina.key" \
     -L "${INSTALL_PATH}/lumina_server.hexlic"
 
 sleep 30

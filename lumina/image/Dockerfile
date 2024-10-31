@@ -6,6 +6,8 @@ COPY lumina90_x64linux.run /lumina90_x64linux.run
 COPY entrypoint.sh /entrypoint.sh
 RUN echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ny\n\ny\n\n\n\n\n\n\ny\n\n\nn\ny\n\n' | /lumina90_x64linux.run --mode text && \
     rm /lumina90_x64linux.run && \
-    mkdir /opt/lumina/CA
+    mkdir -p /opt/lumina/CA && \
+    mkdir -p /opt/lumina/config && \
+    mkdir -p /opt/lumina/data
 COPY patch.py /opt/lumina/patch.py
 ENTRYPOINT [ "/entrypoint.sh" ]

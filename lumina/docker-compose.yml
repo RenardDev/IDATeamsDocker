@@ -22,18 +22,21 @@ services:
     build: ./image
     restart: always
     environment:
-      SKIP_RECREATE_SCHEMA: N
       MYSQL_HOST: db
       MYSQL_DATABASE: lumina
       MYSQL_USER: lumina
       MYSQL_PASSWORD: lumina
       LUMINA_HOST: reversing.example.com
       LUMINA_PORT: 443 # Optional; Default: 443
+
+      # Optional. For Vault integration:
       VAULT_HOST: reversing.example.com
       VAULT_PORT: 65433
     volumes:
-      - ./data/CA/:/opt/lumina/CA/
-      - ./data/logs/:/opt/lumina/logs/
+      - ./CA/:/opt/lumina/CA/
+      - ./config/:/opt/lumina/config/
+      - ./logs/:/opt/lumina/logs/
+      - ./data/:/opt/lumina/data/
     ports:
       - "443:443"
 

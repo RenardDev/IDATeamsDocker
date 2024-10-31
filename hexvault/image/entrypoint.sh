@@ -1,17 +1,37 @@
 #!/bin/bash
 
+# Installation
+
 INSTALL_PATH="/opt/hexvault"
-SCHEMA_LOCK="${INSTALL_PATH}/files/schema.lock"
+
+# General definitions
+
+CA_PATH="${INSTALL_PATH}/CA"
+CONFIG_PATH="${INSTALL_PATH}/config"
+LOGS_PATH="${INSTALL_PATH}/logs"
+DATA_PATH="${INSTALL_PATH}/data"
+
+SCHEMA_LOCK="${CONFIG_PATH}/hexvault_schema.lock"
+
+# Vars
 
 VAULT_HOST=${VAULT_HOST:-localhost}
 VAULT_PORT=${VAULT_PORT:-65433}
 
 cd "$INSTALL_PATH"
 
+# ReSave config
+
+if [[ ! -e "${CONFIG_PATH}/hexvault.conf" ]]; then
+    cat > "${CONFIG_PATH}/hexvault.conf" <<EOL
+sqlite3;Data Source=/opt/hexvault/data/hexvault.sqlite3;
+EOL
+fi
+
 # Checking CA
 
-if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ] || [ ! -f "${INSTALL_PATH}/CA/CA.key" ]; then
-    # openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${INSTALL_PATH}/CA/CA.key" -out "${INSTALL_PATH}/CA/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
+if [ ! -f "${CA_PATH}/CA.pem" ] || [ ! -f "${CA_PATH}/CA.key" ]; then
+    # openssl req -x509 -newkey rsa:4096 -sha512 -keyout "${CA_PATH}/CA.key" -out "${CA_PATH}/CA.pem" -days 365 -nodes -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
     echo "ERROR: Unable to find certification authority!"
     sleep 5
     exit 1
@@ -26,14 +46,15 @@ chmod 755 "${INSTALL_PATH}/vault_server"
 # ReCreate schema
 
 if [ ! -f "$SCHEMA_LOCK" ]; then
-    "${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexvault.conf" -d "${INSTALL_PATH}/files/store" --recreate-schema
+    "${INSTALL_PATH}/vault_server" -f "${CONFIG_PATH}/hexvault.conf" -d "${DATA_PATH}/store" --recreate-schema
+
     touch "$SCHEMA_LOCK"
 fi
 
 # Generating TLS chain
 
-openssl req -newkey rsa:2048 -keyout "${INSTALL_PATH}/server.key" -out "${INSTALL_PATH}/server.csr" -nodes -subj "/CN=${VAULT_HOST}"
-openssl x509 -req -in "${INSTALL_PATH}/server.csr" -CA "${INSTALL_PATH}/CA/CA.pem" -CAkey "${INSTALL_PATH}/CA/CA.key" -CAcreateserial -out "${INSTALL_PATH}/server.crt" -days 365 -sha512 -extfile <(cat <<EOF
+openssl req -newkey rsa:2048 -keyout "${CONFIG_PATH}/hexvault.key" -out "${CONFIG_PATH}/hexvault.csr" -nodes -subj "/CN=${VAULT_HOST}"
+openssl x509 -req -in "${CONFIG_PATH}/hexvault.csr" -CA "${CA_PATH}/CA.pem" -CAkey "${CA_PATH}/CA.key" -CAcreateserial -out "${CONFIG_PATH}/hexvault.crt" -days 365 -sha512 -extfile <(cat <<EOF
 [req]
 distinguished_name=req_distinguished_name
 [req_distinguished_name]
@@ -46,24 +67,21 @@ DNS.1 = "$VAULT_HOST"
 EOF
 )
 
-rm "${INSTALL_PATH}/server.csr"
-
-mv "${INSTALL_PATH}/server.crt" "${INSTALL_PATH}/hexvault.crt"
-mv "${INSTALL_PATH}/server.key" "${INSTALL_PATH}/hexvault.key"
+rm "${CONFIG_PATH}/hexvault.csr"
 
 # Fixing owner and rights
 
-# chown hexvault:hexvault "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
-chmod 640 "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
+# chown hexvault:hexvault "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
+chmod 640 "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
 
 # Run
 
-"${INSTALL_PATH}/vault_server" -f "${INSTALL_PATH}/hexvault.conf" \
+"${INSTALL_PATH}/vault_server" -f "${CONFIG_PATH}/hexvault.conf" \
     -p "$VAULT_PORT" \
-    -l "${INSTALL_PATH}/logs/vault_server.log" \
-    -c "${INSTALL_PATH}/hexvault.crt" \
-    -k "${INSTALL_PATH}/hexvault.key" \
+    -l "${LOGS_PATH}/vault_server.log" \
+    -c "${CONFIG_PATH}/hexvault.crt" \
+    -k "${CONFIG_PATH}/hexvault.key" \
     -L "${INSTALL_PATH}/teams_server.hexlic" \
-    -d "${INSTALL_PATH}/files"
+    -d "$DATA_PATH"
 
 sleep 30
