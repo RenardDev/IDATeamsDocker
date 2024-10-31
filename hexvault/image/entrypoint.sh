@@ -52,7 +52,7 @@ mv "${INSTALL_PATH}/server.key" "${INSTALL_PATH}/hexvault.key"
 
 # Fixing owner and rights
 
-chown hexvault:hexvault "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
+# chown hexvault:hexvault "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
 chmod 640 "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
 
 # Run
@@ -63,3 +63,5 @@ chmod 640 "${INSTALL_PATH}/hexvault.crt" "${INSTALL_PATH}/hexvault.key" "${INSTA
     -k "${INSTALL_PATH}/hexvault.key" \
     -L "${INSTALL_PATH}/teams_server.hexlic" \
     -d "${INSTALL_PATH}/files"
+
+sleep 30

@@ -59,3 +59,5 @@ chmod 640 "${INSTALL_PATH}/hexlicsrv.crt" "${INSTALL_PATH}/hexlicsrv.key" "${INS
     -c "${INSTALL_PATH}/hexlicsrv.crt" \
     -k "${INSTALL_PATH}/hexlicsrv.key" \
     -L "${INSTALL_PATH}/license_server.hexlic"
+
+sleep 30

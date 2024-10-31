@@ -2,7 +2,9 @@
 
 INSTALL_PATH="/opt/lumina"
 LUMINA_CONF="${INSTALL_PATH}/lumina.conf"
+SCHEMA_LOCK="${INSTALL_PATH}/schema.lock"
 
+SKIP_RECREATE_SCHEMA=${SKIP_RECREATE_SCHEMA:-N}
 MYSQL_HOST=${MYSQL_HOST:-localhost}
 MYSQL_PORT=${MYSQL_PORT:-3306}
 MYSQL_DATABASE=${MYSQL_DATABASE:-lumina}
@@ -34,6 +36,8 @@ CONNSTR="mysql;Server=$MYSQL_HOST;Port=$MYSQL_PORT;Database=$MYSQL_DATABASE;Uid=
 VAULT_HOST="$VAULT_HOST:$VAULT_PORT"
 EOL
 
+chmod 640 "$LUMINA_CONF"
+
 # Checking CA
 
 if [ ! -f "${INSTALL_PATH}/CA/CA.pem" ] || [ ! -f "${INSTALL_PATH}/CA/CA.key" ]; then
@@ -49,14 +53,15 @@ python3 "${INSTALL_PATH}/patch.py" lumina
 chown root:root "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc" 
 chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc" 
 
-# --recreate-schema argument
+# ReCreate schema
 
-if [[ "$1" == "--recreate-schema" ]]; then
-  echo "INFO: Recreating schema..."
+if [ ! -f "$SCHEMA_LOCK" ]; then
 
-  "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema
+    if [ ! "$SKIP_RECREATE_SCHEMA" = "y" ] && [ ! "$SKIP_RECREATE_SCHEMA" = "Y" ]; then
+        "${INSTALL_PATH}/lumina_server" -f "$LUMINA_CONF" --recreate-schema
+    fi
 
-  exit 0
+    touch "$SCHEMA_LOCK"
 fi
 
 # Generating TLS chain
@@ -94,3 +99,5 @@ chmod 640 "${INSTALL_PATH}/lumina.crt" "${INSTALL_PATH}/lumina.key" "${INSTALL_P
     -c "${INSTALL_PATH}/lumina.crt" \
     -k "${INSTALL_PATH}/lumina.key" \
     -L "${INSTALL_PATH}/lumina_server.hexlic"
+
+sleep 30
