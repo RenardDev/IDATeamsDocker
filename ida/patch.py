@@ -534,7 +534,8 @@ def main(argv: list) -> int:
         name            = 'RenardDev'
         email           = 'zeze839@gmail.com'
 
-        license_id = generate_id(ID_5=0x00)
+        hexlicsrv_license_id = generate_id(ID_5=0x00)
+        license_id           = generate_id(ID_5=0x00)
 
         # Add-ons
 
@@ -561,7 +562,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner_hexlicsrv, [], [], format_id(license_id)),
+            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner_hexlicsrv, [], [], format_id(hexlicsrv_license_id)),
             generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner, add_ons, [], format_id(license_id))
         ]
 
