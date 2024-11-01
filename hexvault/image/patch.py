@@ -65,35 +65,44 @@ def encrypt_message(message: bytes, private_key: int, public_key: int) -> bytes:
 
 # License
 
+#  IDAPRO     - IDA Pro
+#  IDAEDU     - IDA Educational
+#  IDAPC      - IDA Home for Intel x64
+#  IDAARM     - IDA Home for ARM
+#  IDAPPC     - IDA Home for PowerPC
+#  IDAMIPS    - IDA Home for MIPS
+#  IDAM68K    - IDA Home for Motorola 68K
+#  IDABASE    - Hex-Rays Base
+#  IDACORE    - Hex-Rays Core
+#  IDAULT     - Hex-Rays Ultra
+
 # code
-#  HEXX86
-#  HEXX64
-#  HEXARM
-#  HEXARM64
-#  HEXMIPS
-#  HEXMIPS64
-#  HEXPPC
-#  HEXPPC64
-#  HEXRV
-#  HEXRV64
-#  HEXARC
-#  HEXARC64
-#
-#  HEXCX86
-#  HEXCX64
-#  HEXCARM
-#  HEXCARM64
-#  HEXCMIPS
-#  HEXCMIPS64
-#  HEXCPPC
-#  HEXCPPC64
-#  HEXCRV
-#  HEXCRV64
-#  HEXCARC
-#  HEXCARC64
-#
-#  LUMINA
-#  TEAMS
+#  HEXX64     - x64 Decompiler
+#  HEXX86     - x86 Decompiler
+#  HEXARM64   - ARM64 Decompiler
+#  HEXARM     - ARM Decompiler
+#  HEXPPC64   - PowerPC64 Decompiler
+#  HEXPPC     - PowerPC Decompiler
+#  HEXMIPS64  - MIPS64 Decompiler
+#  HEXMIPS    - MIPS Decompiler
+#  HEXRV64    - RISC-V64 Decompiler
+#  HEXRV      - RISC-V Decompiler
+#  HEXARC     - ARC Decompiler
+#  HEXARC64   - ARC64 Decompiler
+#  HEXCX64    - x64 Decompiler (cloud)
+#  HEXCX86    - x86 Decompiler (cloud)
+#  HEXCARM64  - ARM64 Decompiler (cloud)
+#  HEXCARM    - ARM Decompiler (cloud)
+#  HEXCPPC64  - PowerPC64 Decompiler (cloud)
+#  HEXCPPC    - PowerPC Decompiler (cloud)
+#  HEXCMIPS64 - MIPS64 Decompiler (cloud)
+#  HEXCMIPS   - MIPS Decompiler (cloud)
+#  HEXCRV64   - RISC-V64 Decompiler (cloud)
+#  HEXCRV     - RISC-V Decompiler (cloud)
+#  HEXCARC    - ARC Decompiler (cloud)
+#  HEXCARC64  - ARC64 Decompiler (cloud)
+#  LUMINA     - Lumina Server
+#  TEAMS      - Vault Server
 
 def generate_add_on(code: str, owner: str, start_date: str, end_date: str, id: str) -> dict:
     data = {
