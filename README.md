@@ -16,7 +16,7 @@ Now you have two files (the key and the certificate itself), you need to place t
 1. Create a CA folder in the root (`C:\Program Files\IDA Professional 9.0\CA`)
 2. Copy `CA.key` and `CA.pem` to the previously created folder
 4. Copy the Python script (`patch.py`) to the root
-5. Run script as administrator
+5. Run script as administrator (`python3 patch.py ida-pro`)
 6. Enjoy
 
 # Hexvault hosting
