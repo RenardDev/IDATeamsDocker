@@ -51,3 +51,6 @@ The *_schema.lock flag file is an indicator to the container when it is time to 
 
 # shell.reg
 This file adds support for opening IDA with the right mouse button in Windows.
+
+# shell.9.1.reg
+Same as `shell.reg` but for IDA 9.1
