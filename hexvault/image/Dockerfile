@@ -11,7 +11,7 @@ COPY hexvault90_x64linux.run /tmp/hexvault90_x64linux.run
 COPY entrypoint.sh /entrypoint.sh
 COPY patch.py /opt/hexvault/patch.py
 COPY sigmak_search.py /opt/hexvault/sigmak_search.py
-COPY patch_version_mismatch.py /opt/hexvault/patch_version_mismatch.py
+COPY patch2.py /opt/hexvault/patch2.py
 
 RUN chmod +x /entrypoint.sh && \
     echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ny\n\ny\n\nn\ny\n\n' | /tmp/hexvault90_x64linux.run --mode text && \
