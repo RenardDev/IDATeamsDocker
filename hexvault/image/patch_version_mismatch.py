@@ -2,7 +2,9 @@
 from pathlib import Path
 from sigmak_search import ManualMapper, find_signature
 
-if Path('license_server').exists():
+CURRENT_DIRECTORY = Path(__file__).parent
+
+if CURRENT_DIRECTORY.joinpath('license_server').exists():
     license_server = ManualMapper('license_server')
     license_server.load()
 
@@ -22,10 +24,10 @@ if Path('license_server').exists():
         license_server.memory[address:address + 6] = b'\x90\xE9\xCE\x00\x00\x00'
         print('Patched!')
 
-    license_server.save('license_server')
+    license_server.save(CURRENT_DIRECTORY.joinpath('license_server'))
     license_server.unmap()
 
-if Path('vault_server').exists():
+if CURRENT_DIRECTORY.joinpath('vault_server').exists():
     vault_server = ManualMapper('vault_server')
     vault_server.load()
 
@@ -70,5 +72,5 @@ if Path('vault_server').exists():
         vault_server.memory[address:address + 6] = b'\x90\xE9\xE2\x01\x00\x00'
         print('Patched!')
 
-    vault_server.save('vault_server')
+    vault_server.save(CURRENT_DIRECTORY.joinpath('vault_server'))
     vault_server.unmap()
