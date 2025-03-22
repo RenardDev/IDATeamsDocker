@@ -9,7 +9,7 @@ CURRENT_DIRECTORY = Path(__file__).parent
 LICENSE_SERVER_PATH = CURRENT_DIRECTORY.joinpath('license_server')
 VAULT_SERVER_PATH = CURRENT_DIRECTORY.joinpath('vault_server')
 
-def main():
+def main(argv):
 
     if LICENSE_SERVER_PATH.exists():
         license_server = ManualMapper(LICENSE_SERVER_PATH)
