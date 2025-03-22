@@ -50,6 +50,7 @@ fi
 
 # Apply patch and set permissions
 python3 "${INSTALL_PATH}/patch.py" lumina || { echo "Patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/patch2.py" || { echo "Patch #2 script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 
