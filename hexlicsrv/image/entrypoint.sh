@@ -34,6 +34,7 @@ fi
 
 # Apply patch and set permissions
 python3 "${INSTALL_PATH}/patch.py" hexlicsrv || { echo "Patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/patch_version_mismatch.py" || { echo "Patch version mismatch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 chmod 755 "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 

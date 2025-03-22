@@ -463,7 +463,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
+            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, format_id(license_id))
         ]
 
         # Package
