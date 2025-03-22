@@ -136,7 +136,7 @@ def generate_add_on(code: str, owner: str, start_date: str, end_date: str, id: s
 #  lumina-server
 #  license-server
 
-def generate_license(license_type: str, product_id: str, edition_id: str, description: str, seats: int, start_date: str, end_date: str, issued_on: str, owner: str, add_ons: list, id: str) -> dict:
+def generate_license(license_type: str, product_id: str, edition_id: str, description: str, seats: int, start_date: str, end_date: str, issued_on: str, owner: str, add_ons: list, features: list, id: str) -> dict:
     data = {
         'license_type': license_type,
         'product_id': product_id,
@@ -148,6 +148,7 @@ def generate_license(license_type: str, product_id: str, edition_id: str, descri
         'issued_on': issued_on,
         'owner': owner,
         'add_ons': add_ons,
+        'features': features,
         'id': id
     }
 
@@ -407,7 +408,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', 1, start_date, end_date, issued_on, owner, add_ons, format_id(license_id))
+            generate_license('named', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', 1, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
@@ -463,7 +464,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, format_id(license_id))
+            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
@@ -520,7 +521,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, format_id(license_id))
+            generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
@@ -602,7 +603,7 @@ def main(argv: list) -> int:
 
         licenses = [
             generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner_hexlicsrv, [], format_id(hexlicsrv_license_id)),
-            generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, format_id(license_id))
+            generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package

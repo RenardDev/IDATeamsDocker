@@ -8,6 +8,7 @@ CURRENT_DIRECTORY = Path(__file__).parent
 
 LICENSE_SERVER_PATH = CURRENT_DIRECTORY.joinpath('license_server')
 VAULT_SERVER_PATH = CURRENT_DIRECTORY.joinpath('vault_server')
+LUMINA_SERVER_PATH = CURRENT_DIRECTORY.joinpath('lumina_server')
 
 def main(argv):
 
@@ -81,6 +82,28 @@ def main(argv):
 
         vault_server.save(VAULT_SERVER_PATH)
         vault_server.unmap()
+
+    if LUMINA_SERVER_PATH.exists():
+        lumina_server = ManualMapper(LUMINA_SERVER_PATH)
+        lumina_server.load()
+
+        address = find_signature(
+            lumina_server.memory, lumina_server.image_size,
+            [ 0x2A, 0xD2 ],
+            [ 0b10100000 ],
+            0x11,
+            [
+                ( 0, True, 0x2, 0x1, 0x1, 0x1f )
+            ]
+        )
+
+        if address:
+            print(f'Found address: {address:#x}')
+            lumina_server.memory[address] = 0xEB
+            print('Patched!')
+
+        lumina_server.save(LUMINA_SERVER_PATH)
+        lumina_server.unmap()
 
     return 0
 
