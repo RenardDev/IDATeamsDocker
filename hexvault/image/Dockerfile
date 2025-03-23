@@ -9,9 +9,9 @@ RUN apt-get update && \
 
 COPY hexvault90_x64linux.run /tmp/hexvault90_x64linux.run
 COPY entrypoint.sh /entrypoint.sh
-COPY patch.py /opt/hexvault/patch.py
+COPY main_patch.py /opt/hexvault/main_patch.py
 COPY sigmak_search.py /opt/hexvault/sigmak_search.py
-COPY patch2.py /opt/hexvault/patch2.py
+COPY version_patch.py /opt/hexvault/version_patch.py
 
 RUN chmod +x /entrypoint.sh && \
     echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ny\n\ny\n\nn\ny\n\n' | /tmp/hexvault90_x64linux.run --mode text && \

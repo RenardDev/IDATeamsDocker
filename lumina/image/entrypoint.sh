@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Installation paths
 INSTALL_PATH="/opt/lumina"
 CA_PATH="${INSTALL_PATH}/CA"
@@ -49,8 +51,8 @@ if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then
 fi
 
 # Apply patch and set permissions
-python3 "${INSTALL_PATH}/patch.py" lumina || { echo "Patch script failed"; exit 1; }
-python3 "${INSTALL_PATH}/patch2.py" || { echo "Patch #2 script failed"; exit 1; }
+python3 "${INSTALL_PATH}/main_patch.py" lumina || { echo "Patch main_patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/version_patch.py" || { echo "Patch version_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 

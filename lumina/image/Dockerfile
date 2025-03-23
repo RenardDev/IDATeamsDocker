@@ -9,9 +9,9 @@ RUN apt-get update && \
 
 COPY lumina90_x64linux.run /tmp/lumina90_x64linux.run
 COPY entrypoint.sh /entrypoint.sh
-COPY patch.py /opt/lumina/patch.py
+COPY main_patch.py /opt/lumina/main_patch.py
 COPY sigmak_search.py /opt/lumina/sigmak_search.py
-COPY patch2.py /opt/lumina/patch2.py
+COPY version_patch.py /opt/lumina/version_patch.py
 
 RUN chmod +x /entrypoint.sh && \
     echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ny\n\ny\n\n\n\n\n\n\ny\n\n\nn\ny\n\n' | /tmp/lumina90_x64linux.run --mode text && \

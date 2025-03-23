@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Installation and configuration paths
 INSTALL_PATH="/opt/hexvault"
 CA_PATH="${INSTALL_PATH}/CA"
@@ -33,8 +35,8 @@ if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then
 fi
 
 # Apply patch
-python3 "${INSTALL_PATH}/patch.py" hexvault || { echo "Patch script failed"; exit 1; }
-python3 "${INSTALL_PATH}/patch2.py" || { echo "Patch #2 script failed"; exit 1; }
+python3 "${INSTALL_PATH}/main_patch.py" hexvault || { echo "Patch main_patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/version_patch.py" || { echo "Patch version_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/vault_server"
 chmod 755 "${INSTALL_PATH}/vault_server"
 
