@@ -602,7 +602,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner_hexlicsrv, [], format_id(hexlicsrv_license_id)),
+            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner_hexlicsrv, add_ons, [], format_id(hexlicsrv_license_id)),
             generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
