@@ -442,7 +442,7 @@ def main(argv: list) -> int:
         start_date = datetime.now().strftime('%Y-%m-%d')
         issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date   = '2038-01-18' # '2038-01-19 03:14:07'
-        seats      = 2147483647
+        seats      = 32767
         owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
@@ -499,7 +499,7 @@ def main(argv: list) -> int:
         start_date = datetime.now().strftime('%Y-%m-%d')
         issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date   = '2038-01-18' # '2038-01-19 03:14:07'
-        seats      = 2147483647
+        seats      = 32767
         owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
@@ -556,7 +556,7 @@ def main(argv: list) -> int:
         start_date      = datetime.now().strftime('%Y-%m-%d')
         issued_on       = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date        = '2038-01-18' # '2038-01-19 03:14:07'
-        seats           = 2147483647
+        seats           = 32767
         owner_hexlicsrv = '00:00:00:00:00:00'
         owner           = 'RenardDev'
         name            = 'RenardDev'
