@@ -14,7 +14,7 @@ openssl req -x509 -newkey rsa:4096 -sha512 \
 Now you have two files (the key and the certificate itself), you need to place these two files in the CA folders (`./CA`). Also you need to replace the CA in IDA itself, which is done in another step below.
 
 # IDA preparing
-1. Create a CA folder in the root (`C:\Program Files\IDA Professional 9.1\CA`)
+1. Create a CA folder in the root (`C:\Program Files\IDA Professional 9.0\CA`)
 2. Copy `CA.key` and `CA.pem` to the previously created folder
 3. Copy the Python script (`license_patch.py`) to the root
 4. Run script as administrator (`python3 license_patch.py ida-pro`)

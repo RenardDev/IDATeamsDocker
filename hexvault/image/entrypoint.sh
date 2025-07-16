@@ -35,7 +35,7 @@ if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then
 fi
 
 # Apply patch
-python3 "${INSTALL_PATH}/main_patch.py" hexvault || { echo "Patch main_patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/license_patch.py" hexvault || { echo "Patch license_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/vault_server"
 chmod 755 "${INSTALL_PATH}/vault_server"
 

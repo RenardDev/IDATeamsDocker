@@ -51,7 +51,7 @@ if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then
 fi
 
 # Apply patch and set permissions
-python3 "${INSTALL_PATH}/main_patch.py" lumina || { echo "Patch main_patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/license_patch.py" lumina || { echo "Patch license_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 chmod 755 "${INSTALL_PATH}/lumina_server" "${INSTALL_PATH}/lc"
 
