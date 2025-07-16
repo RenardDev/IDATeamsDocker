@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Installation and configuration paths
 INSTALL_PATH="/opt/hexlicsrv"
 CA_PATH="${INSTALL_PATH}/CA"
@@ -33,7 +35,7 @@ if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then
 fi
 
 # Apply patch and set permissions
-python3 "${INSTALL_PATH}/patch.py" hexlicsrv || { echo "Patch script failed"; exit 1; }
+python3 "${INSTALL_PATH}/main_patch.py" hexlicsrv || { echo "Patch main_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 chmod 755 "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 
@@ -69,6 +71,7 @@ EOF
 rm -f "${CONFIG_PATH}/hexlicsrv.csr"
 
 # Set permissions
+chown hexlicsrv:hexlicsrv "$CONFIG_FILE" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 chmod 640 "$CONFIG_FILE" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 
 # Start the license server

@@ -65,35 +65,44 @@ def encrypt_message(message: bytes, private_key: int, public_key: int) -> bytes:
 
 # License
 
+#  IDAPRO     - IDA Pro
+#  IDAEDU     - IDA Educational
+#  IDAPC      - IDA Home for Intel x64
+#  IDAARM     - IDA Home for ARM
+#  IDAPPC     - IDA Home for PowerPC
+#  IDAMIPS    - IDA Home for MIPS
+#  IDAM68K    - IDA Home for Motorola 68K
+#  IDABASE    - Hex-Rays Base
+#  IDACORE    - Hex-Rays Core
+#  IDAULT     - Hex-Rays Ultra
+
 # code
-#  HEXX86
-#  HEXX64
-#  HEXARM
-#  HEXARM64
-#  HEXMIPS
-#  HEXMIPS64
-#  HEXPPC
-#  HEXPPC64
-#  HEXRV
-#  HEXRV64
-#  HEXARC
-#  HEXARC64
-#
-#  HEXCX86
-#  HEXCX64
-#  HEXCARM
-#  HEXCARM64
-#  HEXCMIPS
-#  HEXCMIPS64
-#  HEXCPPC
-#  HEXCPPC64
-#  HEXCRV
-#  HEXCRV64
-#  HEXCARC
-#  HEXCARC64
-#
-#  LUMINA
-#  TEAMS
+#  HEXX64     - x64 Decompiler
+#  HEXX86     - x86 Decompiler
+#  HEXARM64   - ARM64 Decompiler
+#  HEXARM     - ARM Decompiler
+#  HEXPPC64   - PowerPC64 Decompiler
+#  HEXPPC     - PowerPC Decompiler
+#  HEXMIPS64  - MIPS64 Decompiler
+#  HEXMIPS    - MIPS Decompiler
+#  HEXRV64    - RISC-V64 Decompiler
+#  HEXRV      - RISC-V Decompiler
+#  HEXARC     - ARC Decompiler
+#  HEXARC64   - ARC64 Decompiler
+#  HEXCX64    - x64 Decompiler (cloud)
+#  HEXCX86    - x86 Decompiler (cloud)
+#  HEXCARM64  - ARM64 Decompiler (cloud)
+#  HEXCARM    - ARM Decompiler (cloud)
+#  HEXCPPC64  - PowerPC64 Decompiler (cloud)
+#  HEXCPPC    - PowerPC Decompiler (cloud)
+#  HEXCMIPS64 - MIPS64 Decompiler (cloud)
+#  HEXCMIPS   - MIPS Decompiler (cloud)
+#  HEXCRV64   - RISC-V64 Decompiler (cloud)
+#  HEXCRV     - RISC-V Decompiler (cloud)
+#  HEXCARC    - ARC Decompiler (cloud)
+#  HEXCARC64  - ARC64 Decompiler (cloud)
+#  LUMINA     - Lumina Server
+#  TEAMS      - Vault Server
 
 def generate_add_on(code: str, owner: str, start_date: str, end_date: str, id: str) -> dict:
     data = {
@@ -255,6 +264,7 @@ def main(argv: list) -> int:
             files = [
                 'hv',
                 'hvui',
+                'lsadmin',
                 'libida.so',
                 'libida32.so',
                 'dbgsrv/linux_server',
@@ -284,6 +294,7 @@ def main(argv: list) -> int:
             files = [
                 'hv.exe',
                 'hvui.exe',
+                'lsadmin.exe',
                 'ida.dll',
                 'ida32.dll',
                 'dbgsrv/linux_server',
@@ -313,6 +324,7 @@ def main(argv: list) -> int:
             files = [
                 'hv',
                 'hvui',
+                'lsadmin',
                 'libida.dylib',
                 'libida32.dylib',
                 'dbgsrv/linux_server',
@@ -350,8 +362,9 @@ def main(argv: list) -> int:
 
         # Set up
 
-        start_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        end_date   = '2038-01-19 03:14:07'
+        start_date = datetime.now().strftime('%Y-%m-%d')
+        issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date   = '2038-01-18' # '2038-01-19 03:14:07'
         owner      = 'RenardDev'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
@@ -371,7 +384,19 @@ def main(argv: list) -> int:
             'HEXPPC64',
             'HEXRV64',
             'HEXARC',
-            'HEXARC64'
+            'HEXARC64',
+
+            #'HEXCX86',
+            #'HEXCX64',
+            #'HEXCARM',
+            #'HEXCARM64',
+            #'HEXCMIPS',
+            #'HEXCMIPS64',
+            #'HEXCPPC',
+            #'HEXCPPC64',
+            #'HEXCRV64',
+            #'HEXCARC',
+            #'HEXCARC64'
         ]
 
         add_ons = []
@@ -383,7 +408,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', 1, start_date, end_date, start_date, owner, add_ons, [], format_id(license_id))
+            generate_license('named', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', 1, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
@@ -414,9 +439,10 @@ def main(argv: list) -> int:
 
         # Set up
 
-        start_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        end_date   = '2038-01-19 03:14:07'
-        seats      = 2147483647
+        start_date = datetime.now().strftime('%Y-%m-%d')
+        issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date   = '2038-01-18' # '2038-01-19 03:14:07'
+        seats      = 32767
         owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
@@ -438,7 +464,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner, add_ons, [], format_id(license_id))
+            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
@@ -470,9 +496,10 @@ def main(argv: list) -> int:
 
         # Set up
 
-        start_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        end_date   = '2038-01-19 03:14:07'
-        seats      = 2147483647
+        start_date = datetime.now().strftime('%Y-%m-%d')
+        issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date   = '2038-01-18' # '2038-01-19 03:14:07'
+        seats      = 32767
         owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
@@ -494,7 +521,7 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner, add_ons, [], format_id(license_id))
+            generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
@@ -526,9 +553,10 @@ def main(argv: list) -> int:
 
         # Set up
 
-        start_date      = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        end_date        = '2038-01-19 03:14:07'
-        seats           = 2147483647
+        start_date      = datetime.now().strftime('%Y-%m-%d')
+        issued_on       = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date        = '2038-01-18' # '2038-01-19 03:14:07'
+        seats           = 32767
         owner_hexlicsrv = '00:00:00:00:00:00'
         owner           = 'RenardDev'
         name            = 'RenardDev'
@@ -550,7 +578,19 @@ def main(argv: list) -> int:
             'HEXPPC64',
             'HEXRV64',
             'HEXARC',
-            'HEXARC64'
+            'HEXARC64',
+
+            #'HEXCX86',
+            #'HEXCX64',
+            #'HEXCARM',
+            #'HEXCARM64',
+            #'HEXCMIPS',
+            #'HEXCMIPS64',
+            #'HEXCPPC',
+            #'HEXCPPC64',
+            #'HEXCRV64',
+            #'HEXCARC',
+            #'HEXCARC64'
         ]
 
         add_ons = []
@@ -562,8 +602,8 @@ def main(argv: list) -> int:
         # Licenses
 
         licenses = [
-            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner_hexlicsrv, [], [], format_id(hexlicsrv_license_id)),
-            generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, start_date, owner, add_ons, [], format_id(license_id))
+            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner_hexlicsrv, add_ons, [], format_id(hexlicsrv_license_id)),
+            generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
         ]
 
         # Package
