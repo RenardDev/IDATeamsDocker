@@ -36,7 +36,6 @@ fi
 
 # Apply patch and set permissions
 python3 "${INSTALL_PATH}/main_patch.py" hexlicsrv || { echo "Patch main_patch script failed"; exit 1; }
-python3 "${INSTALL_PATH}/version_patch.py" || { echo "Patch version_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 chmod 755 "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm"
 

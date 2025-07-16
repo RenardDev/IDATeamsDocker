@@ -36,7 +36,6 @@ fi
 
 # Apply patch
 python3 "${INSTALL_PATH}/main_patch.py" hexvault || { echo "Patch main_patch script failed"; exit 1; }
-python3 "${INSTALL_PATH}/version_patch.py" || { echo "Patch version_patch script failed"; exit 1; }
 chown root:root "${INSTALL_PATH}/vault_server"
 chmod 755 "${INSTALL_PATH}/vault_server"
 
@@ -72,7 +71,7 @@ EOF
 rm -f "${CONFIG_PATH}/hexvault.csr"
 
 # Set permissions
-chown hexvault:hexvault "$CONFIG_FILE" "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
+#chown hexvault:hexvault "$CONFIG_FILE" "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
 chmod 640 "$CONFIG_FILE" "${CONFIG_PATH}/hexvault.crt" "${CONFIG_PATH}/hexvault.key" "${INSTALL_PATH}/teams_server.hexlic"
 
 # Start vault server

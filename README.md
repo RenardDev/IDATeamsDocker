@@ -3,7 +3,6 @@ Docker configuration (and only docker configuration) files for hosting self-host
 
 Supported version:
 1. [IDA 9.0.240925 September 30, 2024](https://docs.hex-rays.com/release-notes/9_0)
-2. [IDA 9.1.250226, February 28, 2025](https://docs.hex-rays.com/release-notes/9_1) (Supported by patches)
 
 # CA (NOTE)
 Before you start doing anything, you need to generate your own CA certificate. This can be done like this:
