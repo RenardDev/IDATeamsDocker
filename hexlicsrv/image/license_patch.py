@@ -382,6 +382,7 @@ def main(argv: list) -> int:
             'HEXMIPS64',
             'HEXPPC',
             'HEXPPC64',
+            'HEXRV',
             'HEXRV64',
             'HEXARC',
             'HEXARC64',
@@ -394,9 +395,13 @@ def main(argv: list) -> int:
             #'HEXCMIPS64',
             #'HEXCPPC',
             #'HEXCPPC64',
+            #'HEXCRV',
             #'HEXCRV64',
             #'HEXCARC',
             #'HEXCARC64'
+
+            'TEAMS',
+            'LUMINA'
         ]
 
         add_ons = []
@@ -591,6 +596,9 @@ def main(argv: list) -> int:
             #'HEXCRV64',
             #'HEXCARC',
             #'HEXCARC64'
+
+            'TEAMS',
+            'LUMINA'
         ]
 
         add_ons = []
