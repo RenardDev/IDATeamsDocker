@@ -1,3 +1,4 @@
+version: "3.9"
 
 services:
   hexlicsrv:
@@ -6,12 +7,36 @@ services:
       context: ./image
     restart: always
     environment:
-      - LICENSE_HOST=reversing.example.com
-      - LICENSE_PORT=65434 # Optional; Default: 65434
+      # App
+      LICENSE_HOST: reversing.example.com
+      LICENSE_PORT: "65434"
+
+      # Git sync (filesystem)
+      # GIT_SYNC_ENABLED: "true"
+      # GIT_REMOTE: https://github.com/RenardDev/backup.git
+      # GIT_BRANCH: main
+      # GIT_HOST_ID: hexlicsrv
+      # GIT_CHUNK_SIZE_MB: "49"
+      # GIT_COMMIT_NAME: HexLicSrv CI
+      # GIT_COMMIT_EMAIL: hexlicsrv@example.com
+      # Fine-grained PAT (HTTPS)
+      # GIT_AUTH_TOKEN: github_pat_*
+      # SSH alternative:
+      # GIT_REMOTE: git@github.com:RenardDev/backup.git
+      # GIT_SSH_PRIVATE_KEY: |-
+      #   -----BEGIN OPENSSH PRIVATE KEY-----
+      #   ...
+      #   -----END OPENSSH PRIVATE KEY-----
+      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+
+      # Auto restart: container will exit after N seconds; Docker restarts it
+      # AUTO_RESTART_SECONDS: "21600" # 6 hours
+
     volumes:
       - ./CA:/opt/hexlicsrv/CA
-      - ./config:/opt/hexlicsrv/config
-      - ./logs:/opt/hexlicsrv/logs
-      - ./data:/opt/hexlicsrv/data
+      - ./hexlicsrv/config:/opt/hexlicsrv/config
+      - ./hexlicsrv/logs:/opt/hexlicsrv/logs
+      - ./hexlicsrv/data:/opt/hexlicsrv/data
+
     ports:
       - "65434:65434"

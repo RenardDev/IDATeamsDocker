@@ -1,3 +1,4 @@
+version: "3.9"
 
 services:
   hexvault:
@@ -6,12 +7,36 @@ services:
       context: ./image
     restart: always
     environment:
-      - VAULT_HOST=reversing.example.com
-      - VAULT_PORT=65433 # Optional; Default: 65433
+      # App
+      VAULT_HOST: reversing.example.com
+      VAULT_PORT: "65433"
+
+      # Git sync (filesystem).
+      # GIT_SYNC_ENABLED: "true"
+      # GIT_REMOTE: https://github.com/RenardDev/backup.git
+      # GIT_BRANCH: main
+      # GIT_HOST_ID: hexvault
+      # GIT_CHUNK_SIZE_MB: "49"
+      # GIT_COMMIT_NAME: HexVault CI
+      # GIT_COMMIT_EMAIL: hexvault@example.com
+      # Fine-grained PAT (HTTPS)
+      # GIT_AUTH_TOKEN: github_pat_*
+      # SSH alternative:
+      # GIT_REMOTE: git@github.com:RenardDev/backup.git
+      # GIT_SSH_PRIVATE_KEY: |-
+      #   -----BEGIN OPENSSH PRIVATE KEY-----
+      #   ...
+      #   -----END OPENSSH PRIVATE KEY-----
+      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+
+      # Auto restart: container will exit after N seconds; Docker restarts it
+      AUTO_RESTART_SECONDS: "21600" # 6 hours
+
     volumes:
       - ./CA:/opt/hexvault/CA
-      - ./config:/opt/hexvault/config
-      - ./logs:/opt/hexvault/logs
-      - ./data:/opt/hexvault/data
+      - ./hexvault/config:/opt/hexvault/config
+      - ./hexvault/logs:/opt/hexvault/logs
+      - ./hexvault/data:/opt/hexvault/data
+
     ports:
       - "65433:65433"
