@@ -53,7 +53,7 @@ services:
       # GIT_SYNC_ENABLED: "true"
       # GIT_REMOTE: https://github.com/RenardDev/backup.git
       # GIT_BRANCH: main
-      # GIT_HOST_ID: lumina_db
+      # GIT_HOST_ID: lumina
       # GIT_CHUNK_SIZE_MB: "49"
       # GIT_COMMIT_NAME: Lumina DB Backup
       # GIT_COMMIT_EMAIL: lumina-db@example.com

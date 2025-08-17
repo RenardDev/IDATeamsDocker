@@ -51,7 +51,7 @@ GIT_SYNC_ENABLED="${GIT_SYNC_ENABLED:-false}"
 
 GIT_REMOTE="${GIT_REMOTE:-}"
 GIT_BRANCH="${GIT_BRANCH:-main}"
-GIT_HOST_ID="${GIT_HOST_ID:-lumina_db}"
+GIT_HOST_ID="${GIT_HOST_ID:-lumina}"
 
 GIT_CHUNK_SIZE_MB="${GIT_CHUNK_SIZE_MB:-49}"
 
@@ -139,7 +139,7 @@ db_dump() {
     --events \
     --triggers \
     --hex-blob \
-    --set-gtid-purged=OFF \
+    --no-tablespaces \
     --databases "$MYSQL_DATABASE" \
     > "$GIT_DUMP_PATH"
 
@@ -410,7 +410,7 @@ if [[ ! -f "$SCHEMA_LOCK" ]]; then
   fi
 
   touch "$SCHEMA_LOCK"
-}
+fi
 
 ################################################################
 # TLS: CSR & self-signed CRT via CA
