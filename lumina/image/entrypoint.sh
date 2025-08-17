@@ -18,13 +18,11 @@ SCHEMA_LOCK="${CONFIG_PATH}/lumina_schema.lock"
 GIT_WORK="${INSTALL_PATH}/_dbgit"
 REMOTE_DIR="${GIT_WORK}/backups/${GIT_HOST_ID}"
 
-GIT_DUMP_BASENAME="${MYSQL_DATABASE:-lumina}.sql"
-GIT_DUMP_PATH="${INSTALL_PATH}/${GIT_DUMP_BASENAME}"
+DUMP_PATH="${INSTALL_PATH}/dump.sql"
 
-GIT_ARCHIVE_NAME="${GIT_DUMP_BASENAME}.zst"
-GIT_ARCHIVE_PATH="${INSTALL_PATH}/${GIT_ARCHIVE_NAME}"
-
-GIT_MANIFEST_NAME="manifest.json"
+ARCHIVE_NAME="dump.sql.zst"
+ARCHIVE_PATH="${INSTALL_PATH}/${ARCHIVE_NAME}"
+MANIFEST_NAME="manifest.json"
 
 SKIP_SCHEMA_RECREATE=0
 
@@ -114,7 +112,7 @@ db_is_empty() {
 }
 
 db_dump() {
-  rm -f "$GIT_DUMP_PATH" "$GIT_ARCHIVE_PATH"
+  rm -f "$DUMP_PATH" "$ARCHIVE_PATH"
 
   mysqldump \
     --protocol=TCP \
@@ -128,13 +126,13 @@ db_dump() {
     --hex-blob \
     --no-tablespaces \
     --databases "$MYSQL_DATABASE" \
-    > "$GIT_DUMP_PATH"
+    > "$DUMP_PATH"
 
-  zstd -q -T0 -19 -o "$GIT_ARCHIVE_PATH" "$GIT_DUMP_PATH"
+  zstd -q -T0 -19 -o "$ARCHIVE_PATH" "$DUMP_PATH"
 
   local size sha
-  size="$(stat -c '%s' "$GIT_ARCHIVE_PATH")"
-  sha="$(sha256sum "$GIT_ARCHIVE_PATH" | awk '{print $1}')"
+  size="$(stat -c '%s' "$ARCHIVE_PATH")"
+  sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
 
   printf '%s %s\n' "$size" "$sha"
 }
@@ -216,8 +214,8 @@ git_commit_push() {
 }
 
 db_read_remote_manifest() {
-  if [[ -f "${REMOTE_DIR}/${GIT_MANIFEST_NAME}" ]]; then
-    cat "${REMOTE_DIR}/${GIT_MANIFEST_NAME}"
+  if [[ -f "${REMOTE_DIR}/${MANIFEST_NAME}" ]]; then
+    cat "${REMOTE_DIR}/${MANIFEST_NAME}"
   else
     echo ""
   fi
@@ -226,11 +224,11 @@ db_read_remote_manifest() {
 db_split_into_remote() {
   local bs=$((GIT_CHUNK_SIZE_MB * 1000000))
 
-  rm -f "${REMOTE_DIR}/${GIT_ARCHIVE_NAME}.part_"* "${REMOTE_DIR}/${GIT_MANIFEST_NAME}" || true
+  rm -f "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true
 
   split -b "$bs" -d -a 3 \
-    "$GIT_ARCHIVE_PATH" \
-    "${REMOTE_DIR}/${GIT_ARCHIVE_NAME}.part_"
+    "$ARCHIVE_PATH" \
+    "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"
 }
 
 db_assemble_from_remote() {
@@ -238,7 +236,7 @@ db_assemble_from_remote() {
 
   rm -f "$dest"
   # shellcheck disable=SC2046
-  cat $(ls "${REMOTE_DIR}/${GIT_ARCHIVE_NAME}.part_"* | sort) > "$dest"
+  cat $(ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* | sort) > "$dest"
 }
 
 db_write_manifest() {
@@ -253,9 +251,8 @@ db_write_manifest() {
     --argjson chunk_size_mb "$GIT_CHUNK_SIZE_MB" \
     --argjson archive_size_bytes "$size" \
     --arg    archive_sha256 "$sha" \
-    --argjson chunk_count "$(ls "${REMOTE_DIR}/${GIT_ARCHIVE_NAME}.part_"* 2>/dev/null | wc -l)" \
+    --argjson chunk_count "$(ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* 2>/dev/null | wc -l)" \
     '{
-      type:               "mysql_dump",
       host_id:            $host_id,
       database:           $db_name,
       timestamp_utc:      $timestamp_utc,
@@ -263,7 +260,7 @@ db_write_manifest() {
       chunk_count:        $chunk_count,
       archive_size_bytes: $archive_size_bytes,
       archive_sha256:     $archive_sha256
-    }' > "${REMOTE_DIR}/${GIT_MANIFEST_NAME}"
+    }' > "${REMOTE_DIR}/${MANIFEST_NAME}"
 }
 
 ################################################################
@@ -289,16 +286,16 @@ perform_db_sync() {
       rm -rf "$tmp"
       mkdir -p "$tmp"
 
-      ls "${REMOTE_DIR}/${GIT_ARCHIVE_NAME}.part_"* >/dev/null 2>&1 || die "Remote DB parts not found"
+      ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* >/dev/null 2>&1 || die "Remote DB parts not found"
 
-      db_assemble_from_remote "$tmp/${GIT_ARCHIVE_NAME}"
+      db_assemble_from_remote "$tmp/${ARCHIVE_NAME}"
 
       sha_remote="$(echo "$man" | jq -r '.archive_sha256')"
-      sha_local="$(sha256sum "$tmp/${GIT_ARCHIVE_NAME}" | awk '{print $1}')"
+      sha_local="$(sha256sum "$tmp/${ARCHIVE_NAME}" | awk '{print $1}')"
 
       [[ "$sha_remote" == "$sha_local" ]] || die "DB checksum mismatch"
 
-      db_import_archive "$tmp/${GIT_ARCHIVE_NAME}"
+      db_import_archive "$tmp/${ARCHIVE_NAME}"
       rm -rf "$tmp"
 
       SKIP_SCHEMA_RECREATE=1
