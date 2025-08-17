@@ -267,7 +267,6 @@ def main(argv: list) -> int:
                 'lsadmin',
                 'libida.so',
                 'libida32.so',
-                'lsadm',
                 'dbgsrv/linux_server',
                 'dbgsrv/linux_server32',
                 'dbgsrv/mac_server',
@@ -298,14 +297,13 @@ def main(argv: list) -> int:
                 'lsadmin.exe',
                 'ida.dll',
                 'ida32.dll',
-                'lsadm.exe',
                 'dbgsrv/linux_server',
                 'dbgsrv/linux_server32',
                 'dbgsrv/mac_server',
                 'dbgsrv/mac_server32',
                 'dbgsrv/mac_server_arm',
                 'dbgsrv/mac_server_arme',
-                'dbgsrv/win32_remote32.exe',
+                'dbgsrv/win32_remote32',
                 'dbgsrv/win64_remote.exe',
                 'plugins/armlinux_stub.dll',
                 'plugins/arm_mac_stub.dll',
@@ -329,7 +327,6 @@ def main(argv: list) -> int:
                 'lsadmin',
                 'libida.dylib',
                 'libida32.dylib',
-                'lsadm',
                 'dbgsrv/linux_server',
                 'dbgsrv/linux_server32',
                 'dbgsrv/mac_server',
@@ -385,6 +382,7 @@ def main(argv: list) -> int:
             'HEXMIPS64',
             'HEXPPC',
             'HEXPPC64',
+            'HEXRV',
             'HEXRV64',
             'HEXARC',
             'HEXARC64',
@@ -397,9 +395,13 @@ def main(argv: list) -> int:
             #'HEXCMIPS64',
             #'HEXCPPC',
             #'HEXCPPC64',
+            #'HEXCRV',
             #'HEXCRV64',
             #'HEXCARC',
             #'HEXCARC64'
+
+            'TEAMS',
+            'LUMINA'
         ]
 
         add_ons = []
@@ -594,6 +596,9 @@ def main(argv: list) -> int:
             #'HEXCRV64',
             #'HEXCARC',
             #'HEXCARC64'
+
+            'TEAMS',
+            'LUMINA'
         ]
 
         add_ons = []

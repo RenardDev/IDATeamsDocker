@@ -1,3 +1,4 @@
+version: "3.9"
 
 services:
   db:
@@ -15,36 +16,9 @@ services:
     ports:
       - "3306:3306"
 
-  lumina:
-    container_name: lumina
-    depends_on:
-      - db
-    build:
-      context: ./image
-    restart: always
-    environment:
-      MYSQL_HOST: db
-      MYSQL_DATABASE: lumina
-      MYSQL_USER: lumina
-      MYSQL_PASSWORD: lumina
-      LUMINA_HOST: reversing.example.com
-      LUMINA_PORT: 443 # Optional; Default: 443
-
-      # Optional Vault integration
-      VAULT_HOST: reversing.example.com
-      VAULT_PORT: 65433
-    volumes:
-      - ./CA:/opt/lumina/CA
-      - ./config:/opt/lumina/config
-      - ./logs:/opt/lumina/logs
-      - ./data:/opt/lumina/data
-    ports:
-      - "443:443"
-
   phpmyadmin:
     container_name: phpmyadmin
-    depends_on:
-      - db
+    depends_on: [ db ]
     image: phpmyadmin/phpmyadmin:latest
     restart: always
     environment:
@@ -52,3 +26,53 @@ services:
       MYSQL_ROOT_PASSWORD: lumina
     ports:
       - "8080:80"
+
+  lumina:
+    container_name: lumina
+    depends_on: [ db ]
+    build:
+      context: ./image
+    restart: always
+    environment:
+      # DB for app & backup
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: lumina
+      MYSQL_USER: lumina
+      MYSQL_PASSWORD: lumina
+
+      # App
+      LUMINA_HOST: reversing.example.com
+      LUMINA_PORT: "443"
+
+      # Optional
+      VAULT_HOST: reversing.example.com
+      VAULT_PORT: "65433"
+
+      # Git sync (MySQL dump)
+      # GIT_SYNC_ENABLED: "true"
+      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
+      # GIT_BRANCH: main
+      # GIT_HOST_ID: lumina
+      # GIT_CHUNK_SIZE_MB: "49"
+      # GIT_COMMIT_NAME: Lumina DB CI
+      # GIT_COMMIT_EMAIL: lumina-db@example.com
+
+      # Fine-grained PAT (HTTPS)
+      # GIT_AUTH_TOKEN: github_pat_*
+
+      # SSH alternative:
+      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
+      # GIT_SSH_PRIVATE_KEY: |-
+      #   -----BEGIN OPENSSH PRIVATE KEY-----
+      #   ...
+      #   -----END OPENSSH PRIVATE KEY-----
+      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+
+    volumes:
+      - ./CA:/opt/lumina/CA
+      - ./lumina/config:/opt/lumina/config
+      - ./lumina/logs:/opt/lumina/logs
+      - ./lumina/data:/opt/lumina/data
+    ports:
+      - "443:443"
