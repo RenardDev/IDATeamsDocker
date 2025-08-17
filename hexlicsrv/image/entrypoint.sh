@@ -29,8 +29,6 @@ MANIFEST_NAME="manifest.json"
 LICENSE_HOST="${LICENSE_HOST:-localhost}"
 LICENSE_PORT="${LICENSE_PORT:-65434}"
 
-AUTO_RESTART_SECONDS="${AUTO_RESTART_SECONDS:-0}"
-
 ################################################################
 # Git Sync Configuration (env with sane defaults)
 ################################################################
@@ -75,18 +73,6 @@ ensure_tools() {
 now_utc() {
   date -u +'%Y-%m-%dT%H:%M:%SZ'
 }
-
-start_auto_restart_watchdog() {
-  local t="${AUTO_RESTART_SECONDS:-0}"
-  if [[ "$t" =~ ^[0-9]+$ ]] && (( t > 0 )); then
-    (
-      sleep "$t"
-      log "Auto-restart: stopping PID 1"
-      kill -TERM 1
-    ) &
-  fi
-}
-
 
 ################################################################
 # Git Helpers
@@ -380,10 +366,8 @@ chmod 640 \
   "${INSTALL_PATH}/license_server.hexlic"
 
 ################################################################
-# Watchdog & Launch
+# Launch
 ################################################################
-
-start_auto_restart_watchdog
 
 exec "${INSTALL_PATH}/license_server" \
   -f "$CONFIG_FILE" \

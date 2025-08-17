@@ -41,8 +41,6 @@ MYSQL_PASSWORD="${MYSQL_PASSWORD:-lumina}"
 LUMINA_HOST="${LUMINA_HOST:-localhost}"
 LUMINA_PORT="${LUMINA_PORT:-443}"
 
-AUTO_RESTART_SECONDS="${AUTO_RESTART_SECONDS:-0}"
-
 ################################################################
 # Git DB Sync Configuration (env with sane defaults)
 ################################################################
@@ -93,17 +91,6 @@ wait_for_db() {
     log "Waiting DB ${MYSQL_HOST}:${MYSQL_PORT}…"
     sleep 3
   done
-}
-
-start_auto_restart_watchdog() {
-  local t="${AUTO_RESTART_SECONDS:-0}"
-  if [[ "$t" =~ ^[0-9]+$ ]] && (( t > 0 )); then
-    (
-      sleep "$t"
-      log "Auto-restart: stopping PID 1 for scheduled refresh"
-      kill -TERM 1
-    ) &
-  fi
 }
 
 ################################################################
@@ -453,10 +440,8 @@ chmod 640 \
   "${INSTALL_PATH}/lumina_server.hexlic"
 
 ################################################################
-# Watchdog & Launch
+# Launch
 ################################################################
-
-start_auto_restart_watchdog
 
 exec "${INSTALL_PATH}/lumina_server" \
   -f "$CONFIG_FILE" \
