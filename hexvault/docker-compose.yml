@@ -33,9 +33,9 @@ services:
 
     volumes:
       - ./CA:/opt/hexvault/CA
-      - ./hexvault/config:/opt/hexvault/config
-      - ./hexvault/logs:/opt/hexvault/logs
-      - ./hexvault/data:/opt/hexvault/data
+      - ./config:/opt/hexvault/config
+      - ./logs:/opt/hexvault/logs
+      - ./data:/opt/hexvault/data
 
     ports:
       - "65433:65433"

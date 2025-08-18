@@ -33,9 +33,9 @@ services:
 
     volumes:
       - ./CA:/opt/hexlicsrv/CA
-      - ./hexlicsrv/config:/opt/hexlicsrv/config
-      - ./hexlicsrv/logs:/opt/hexlicsrv/logs
-      - ./hexlicsrv/data:/opt/hexlicsrv/data
+      - ./config:/opt/hexlicsrv/config
+      - ./logs:/opt/hexlicsrv/logs
+      - ./data:/opt/hexlicsrv/data
 
     ports:
       - "65434:65434"

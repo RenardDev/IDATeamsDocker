@@ -71,8 +71,8 @@ services:
 
     volumes:
       - ./CA:/opt/lumina/CA
-      - ./lumina/config:/opt/lumina/config
-      - ./lumina/logs:/opt/lumina/logs
-      - ./lumina/data:/opt/lumina/data
+      - ./config:/opt/lumina/config
+      - ./logs:/opt/lumina/logs
+      - ./data:/opt/lumina/data
     ports:
       - "443:443"
