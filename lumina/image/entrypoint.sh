@@ -25,6 +25,7 @@ ARCHIVE_PATH="${INSTALL_PATH}/${ARCHIVE_NAME}"
 MANIFEST_NAME="manifest.json"
 
 SKIP_SCHEMA_RECREATE=0
+GIT_MODE=""
 
 ################################################################
 # App Configuration (env with sane defaults)
@@ -62,37 +63,21 @@ GIT_KNOWN_HOSTS="${GIT_KNOWN_HOSTS:-}"
 # Utils
 ################################################################
 
-log() {
-  local ts; ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-  printf '[%s] %s\n' "$ts" "$*"
-}
-
-die() {
-  log "ERROR: $*"
-  exit 1
-}
-
-ensure_tools() {
-  local t
-  for t in git ssh-keyscan zstd jq tar sha256sum split mysql mysqldump nc openssl; do
-    command -v "$t" >/dev/null 2>&1 || die "Missing tool: $t"
-  done
-}
-
+log() { local ts; ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"; printf '[%s] %s\n' "$ts" "$*"; }
+die() { log "ERROR: $*"; exit 1; }
+ensure_tools() { local t; for t in git ssh-keyscan zstd jq tar sha256sum split mysql mysqldump nc openssl; do command -v "$t" >/dev/null 2>&1 || die "Missing tool: $t"; done; }
 now_utc() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
-
-wait_for_db() {
-  until nc -z "$MYSQL_HOST" "$MYSQL_PORT"; do
-    log "Waiting DB ${MYSQL_HOST}:${MYSQL_PORT}..."; sleep 3
-  done
-}
+wait_for_db() { until nc -z "$MYSQL_HOST" "$MYSQL_PORT"; do log "Waiting DB ${MYSQL_HOST}:${MYSQL_PORT}..."; sleep 3; done; }
+chown_if_user() { local u="$1"; shift; if id -u "$u" >/dev/null 2>&1; then chown "$u:$u" "$@"; else chown root:root "$@"; fi }
 
 ################################################################
 # DB Helpers (dump/import/inspect)
 ################################################################
 
 mysql_query_scalar() {
-  mysql --batch --skip-column-names --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" -e "$1"
+  mysql --batch --skip-column-names --protocol=TCP \
+    -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
+    -e "$1"
 }
 
 db_is_empty() {
@@ -102,11 +87,11 @@ db_is_empty() {
 
 db_dump() {
   rm -f "$DUMP_PATH" "$ARCHIVE_PATH"
-  mysqldump --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" --single-transaction --quick --routines --events --triggers --hex-blob --no-tablespaces --databases "$MYSQL_DATABASE" > "$DUMP_PATH"
+  mysqldump --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
+    --single-transaction --quick --routines --events --triggers --hex-blob --no-tablespaces \
+    --databases "$MYSQL_DATABASE" > "$DUMP_PATH"
   zstd -q -T0 -19 -o "$ARCHIVE_PATH" "$DUMP_PATH"
-  local size sha
-  size="$(stat -c '%s' "$ARCHIVE_PATH")"
-  sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
+  local size sha; size="$(stat -c '%s' "$ARCHIVE_PATH")"; sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
   printf '%s %s\n' "$size" "$sha"
 }
 
@@ -115,167 +100,133 @@ db_import_archive() {
 }
 
 ################################################################
-# Git Helpers (clone-if-empty; always hard-pull if no creds)
+# Git Mode & Helpers
 ################################################################
 
-git_can_push() { [[ -n "$GIT_AUTH_TOKEN" || -n "$GIT_SSH_PRIVATE_KEY" ]]; }
+git_mode_detect() {
+  [[ -n "$GIT_REMOTE" ]] || die "GIT_REMOTE is required"
+  if [[ "$GIT_REMOTE" =~ ^https:// ]]; then
+    [[ -n "$GIT_AUTH_TOKEN" ]] && GIT_MODE="SYNC" || GIT_MODE="HTTPS_PULLONLY"
+  elif [[ "$GIT_REMOTE" =~ ^git@ || "$GIT_REMOTE" =~ ^ssh:// ]]; then
+    [[ -n "$GIT_SSH_PRIVATE_KEY" ]] || die "SSH remote requires GIT_SSH_PRIVATE_KEY"
+    GIT_MODE="SYNC"
+  else
+    die "Unsupported GIT_REMOTE scheme (use https:// or ssh:// / git@)"
+  fi
+}
+
+git_can_push() { [[ "$GIT_MODE" == "SYNC" ]]; }
 
 git_setup() {
-  [[ -n "$GIT_REMOTE" ]] || die "GIT_REMOTE is required"
   mkdir -p "$GIT_WORK"
-
   local url="$GIT_REMOTE"
-  if [[ -n "$GIT_AUTH_TOKEN" && "$GIT_REMOTE" =~ ^https:// ]]; then
+  if [[ "$GIT_MODE" == "SYNC" && "$GIT_REMOTE" =~ ^https:// && -n "$GIT_AUTH_TOKEN" ]]; then
     url="https://x-access-token:${GIT_AUTH_TOKEN}@${GIT_REMOTE#https://}"
   fi
-
   if [[ "$GIT_REMOTE" =~ ^git@ || "$GIT_REMOTE" =~ ^ssh:// ]]; then
     mkdir -p /root/.ssh && chmod 700 /root/.ssh
-    local key=""
+    local key="/root/.ssh/id_ed25519"
     if [[ -n "$GIT_SSH_PRIVATE_KEY" ]]; then
-      key="/root/.ssh/id_ed25519"
       grep -q "BEGIN OPENSSH PRIVATE KEY" <<<"$GIT_SSH_PRIVATE_KEY" || key="/root/.ssh/id_rsa"
-      printf '%s\n' "$GIT_SSH_PRIVATE_KEY" > "$key"
-      chmod 600 "$key"
+      printf '%s\n' "$GIT_SSH_PRIVATE_KEY" > "$key"; chmod 600 "$key"
     fi
     if [[ -n "$GIT_KNOWN_HOSTS" ]]; then
-      printf '%s\n' "$GIT_KNOWN_HOSTS" > /root/.ssh/known_hosts
-      chmod 644 /root/.ssh/known_hosts
-      export GIT_SSH_COMMAND="ssh -i ${key:-/root/.ssh/id_ed25519} -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+      printf '%s\n' "$GIT_KNOWN_HOSTS" > /root/.ssh/known_hosts; chmod 644 /root/.ssh/known_hosts
+      export GIT_SSH_COMMAND="ssh -i ${key} -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=yes"
     else
-      export GIT_SSH_COMMAND="ssh -i ${key:-/root/.ssh/id_ed25519} -o StrictHostKeyChecking=no"
+      export GIT_SSH_COMMAND="ssh -i ${key} -o StrictHostKeyChecking=no"
     fi
   fi
-
   if [[ ! -d "$GIT_WORK/.git" ]]; then
     if [[ -z "$(ls -A "$GIT_WORK" 2>/dev/null)" ]]; then
       log "Cloning repo (branch: ${GIT_BRANCH}) into ${GIT_WORK}"
       if ! git clone --depth=1 --branch "$GIT_BRANCH" "$url" "$GIT_WORK" 2>/dev/null; then
-        git clone --depth=1 "$url" "$GIT_WORK"
-        git -C "$GIT_WORK" checkout -B "$GIT_BRANCH"
+        git clone --depth=1 "$url" "$GIT_WORK"; git -C "$GIT_WORK" checkout -B "$GIT_BRANCH"
       fi
-    else
-      die "GIT_WORK exists but is not a git repo: $GIT_WORK"
-    fi
+    else die "GIT_WORK exists but is not a git repo: $GIT_WORK"; fi
   else
-    if git -C "$GIT_WORK" remote | grep -q '^origin$'; then
-      git -C "$GIT_WORK" remote set-url origin "$url"
-    else
-      git -C "$GIT_WORK" remote add origin "$url"
-    fi
+    if git -C "$GIT_WORK" remote | grep -q '^origin$'; then git -C "$GIT_WORK" remote set-url origin "$url"; else git -C "$GIT_WORK" remote add origin "$url"; fi
   fi
-
   git -C "$GIT_WORK" config user.name  "$GIT_COMMIT_NAME"
   git -C "$GIT_WORK" config user.email "$GIT_COMMIT_EMAIL"
   mkdir -p "$REMOTE_DIR"
 }
 
 git_pull() {
-  log "Syncing ${GIT_BRANCH} (read-only=$([[ git_can_push ]] && echo no || echo yes))"
+  log "Syncing ${GIT_BRANCH} (mode=${GIT_MODE})"
   git -C "$GIT_WORK" remote | grep -q '^origin$' || die "No 'origin' remote in $GIT_WORK"
-
   if git -C "$GIT_WORK" ls-remote --heads origin "$GIT_BRANCH" | grep -q "$GIT_BRANCH"; then
     git -C "$GIT_WORK" fetch --depth=1 origin "$GIT_BRANCH"
     git -C "$GIT_WORK" checkout -B "$GIT_BRANCH" "origin/${GIT_BRANCH}"
     git -C "$GIT_WORK" reset --hard "origin/${GIT_BRANCH}"
     git -C "$GIT_WORK" clean -xfd
   else
-    log "Remote branch '${GIT_BRANCH}' not found; keeping empty local branch"
+    log "Remote branch '${GIT_BRANCH}' not found (remote empty?)"
     git -C "$GIT_WORK" checkout --orphan "$GIT_BRANCH"
     git -C "$GIT_WORK" reset --hard
     git -C "$GIT_WORK" clean -xfd
   fi
-
   mkdir -p "$REMOTE_DIR"
-}
-
-git_commit_push() {
-  local msg="$1"
-  if ! git_can_push; then
-    log "Read-only mode (no token/SSH) -> skipping commit/push"
-    return 0
-  fi
-  git -C "$GIT_WORK" add -A
-  if git -C "$GIT_WORK" diff --cached --quiet; then
-    log "DB: nothing to commit"; return 0
-  fi
-  git -C "$GIT_WORK" commit -m "$msg"
-  git -C "$GIT_WORK" push origin "$GIT_BRANCH"
 }
 
 ################################################################
 # Packing / Splitting helpers (DB)
 ################################################################
 
-db_read_remote_manifest() {
-  if [[ -f "${REMOTE_DIR}/${MANIFEST_NAME}" ]]; then cat "${REMOTE_DIR}/${MANIFEST_NAME}"; else echo ""; fi
-}
-
-db_split_into_remote() {
-  local bs=$((GIT_CHUNK_SIZE_MB * 1000000))
-  mkdir -p "$REMOTE_DIR"
-  rm -f "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true
-  split -b "$bs" -d -a 3 "$ARCHIVE_PATH" "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"
-}
-
-db_assemble_from_remote() {
-  local dest="$1"
-  rm -f "$dest"
-  # shellcheck disable=SC2046
-  cat $(ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* | sort) > "$dest"
-}
+db_read_remote_manifest() { [[ -f "${REMOTE_DIR}/${MANIFEST_NAME}" ]] && cat "${REMOTE_DIR}/${MANIFEST_NAME}" || echo ""; }
+db_split_into_remote() { local bs=$((GIT_CHUNK_SIZE_MB * 1000000)); mkdir -p "$REMOTE_DIR"; rm -f "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true; split -b "$bs" -d -a 3 "$ARCHIVE_PATH" "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"; }
+db_assemble_from_remote() { local dest="$1"; rm -f "$dest"; cat $(ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* 2>/dev/null | sort) > "$dest"; }
 
 db_write_manifest() {
   local ts="$1" size="$2" sha="$3"
-  jq -n \
-    --arg host_id "$GIT_HOST_ID" \
-    --arg timestamp_utc "$ts" \
+  jq -n --arg host_id "$GIT_HOST_ID" --arg timestamp_utc "$ts" \
     --argjson chunk_size_mb "$GIT_CHUNK_SIZE_MB" \
     --argjson archive_size_bytes "$size" \
     --arg archive_sha256 "$sha" \
     --argjson chunk_count "$(ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* 2>/dev/null | wc -l)" \
-    '{
-      host_id: $host_id,
-      timestamp_utc: $timestamp_utc,
-      chunk_size_mb: $chunk_size_mb,
-      chunk_count: $chunk_count,
-      archive_size_bytes: $archive_size_bytes,
-      archive_sha256: $archive_sha256
-    }' > "${REMOTE_DIR}/${MANIFEST_NAME}"
+    '{host_id:$host_id,timestamp_utc:$timestamp_utc,chunk_size_mb:$chunk_size_mb,chunk_count:$chunk_count,archive_size_bytes:$archive_size_bytes,archive_sha256:$archive_sha256}' \
+    > "${REMOTE_DIR}/${MANIFEST_NAME}"
+}
+
+restore_from_remote_db() {
+  ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* >/dev/null 2>&1 || die "Remote DB parts not found"
+  local tmp sha_remote sha_local; tmp="${INSTALL_PATH}/_dbrestore"
+  rm -rf "$tmp"; mkdir -p "$tmp"
+  db_assemble_from_remote "$tmp/${ARCHIVE_NAME}"
+  sha_remote="$(jq -r '.archive_sha256' < "${REMOTE_DIR}/${MANIFEST_NAME}")"
+  sha_local="$(sha256sum "$tmp/${ARCHIVE_NAME}" | awk '{print $1}')"
+  [[ "$sha_remote" == "$sha_local" ]] || die "DB checksum mismatch"
+  db_import_archive "$tmp/${ARCHIVE_NAME}"
+  rm -rf "$tmp"
+  SKIP_SCHEMA_RECREATE=1
 }
 
 ################################################################
-# DB Sync (pull-if-empty, else push-if-allowed)
+# DB Sync
 ################################################################
 
 perform_db_sync() {
   ensure_tools
+  git_mode_detect
   git_setup
   git_pull
 
   local man; man="$(db_read_remote_manifest || true)"
 
-  if db_is_empty; then
+  if [[ "$GIT_MODE" == "HTTPS_PULLONLY" ]]; then
     if [[ -n "$man" ]]; then
-      log "DB empty -> restore from remote"
-      local tmp sha_remote sha_local; tmp="${INSTALL_PATH}/_dbrestore"
-      rm -rf "$tmp"; mkdir -p "$tmp"
-      ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* >/dev/null 2>&1 || die "Remote DB parts not found"
-      db_assemble_from_remote "$tmp/${ARCHIVE_NAME}"
-      sha_remote="$(echo "$man" | jq -r '.archive_sha256')"
-      sha_local="$(sha256sum "$tmp/${ARCHIVE_NAME}" | awk '{print $1}')"
-      [[ "$sha_remote" == "$sha_local" ]] || die "DB checksum mismatch"
-      db_import_archive "$tmp/${ARCHIVE_NAME}"
-      rm -rf "$tmp"
-      SKIP_SCHEMA_RECREATE=1
+      log "HTTPS (no token): restore remote DB snapshot over local"
+      restore_from_remote_db
     else
-      log "DB empty and no remote snapshot"
+      log "HTTPS (no token): remote has no DB snapshot -> keep local"
     fi
     return 0
   fi
 
-  if ! git_can_push; then
-    log "Read-only: local DB present -> skip dump/pack/push"
+  # SYNC mode
+  if db_is_empty && [[ -n "$man" ]]; then
+    log "DB empty -> restore from remote"
+    restore_from_remote_db
     return 0
   fi
 
@@ -290,7 +241,10 @@ perform_db_sync() {
   if [[ "$need_push" == "yes" ]]; then
     db_split_into_remote
     db_write_manifest "$(now_utc)" "$size" "$sha"
-    git_commit_push "mysql-backup(${GIT_HOST_ID}/${MYSQL_DATABASE}): size=${size} sha256=${sha}"
+    git -C "$GIT_WORK" add -A
+    if git -C "$GIT_WORK" diff --cached --quiet; then log "DB: nothing to commit"; return 0; fi
+    git -C "$GIT_WORK" commit -m "mysql-backup(${GIT_HOST_ID}/${MYSQL_DATABASE}): size=${size} sha256=${sha}"
+    git -C "$GIT_WORK" push origin "$GIT_BRANCH"
   fi
 }
 
@@ -367,11 +321,23 @@ EOF
 ) >/dev/null 2>&1 || die "CRT failed"
 rm -f "${CONFIG_PATH}/lumina.csr"
 
-chown lumina:lumina "$CONFIG_FILE" "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic" || true
+chown_if_user lumina \
+  "$CONFIG_FILE" \
+  "${CONFIG_PATH}/lumina.crt" \
+  "${CONFIG_PATH}/lumina.key" \
+  "${INSTALL_PATH}/lumina_server.hexlic" || true
+
 chmod 640 "$CONFIG_FILE" "${CONFIG_PATH}/lumina.crt" "${CONFIG_PATH}/lumina.key" "${INSTALL_PATH}/lumina_server.hexlic"
 
 ################################################################
 # Launch
 ################################################################
 
-exec "${INSTALL_PATH}/lumina_server" -f "$CONFIG_FILE" -p "$LUMINA_PORT" -D "$DATA_PATH" -l "${LOGS_PATH}/lumina_server.log" -c "${CONFIG_PATH}/lumina.crt" -k "${CONFIG_PATH}/lumina.key" -L "${INSTALL_PATH}/lumina_server.hexlic"
+exec "${INSTALL_PATH}/lumina_server" \
+  -f "$CONFIG_FILE" \
+  -p "$LUMINA_PORT" \
+  -D "$DATA_PATH" \
+  -l "${LOGS_PATH}/lumina_server.log" \
+  -c "${CONFIG_PATH}/lumina.crt" \
+  -k "${CONFIG_PATH}/lumina.key" \
+  -L "${INSTALL_PATH}/lumina_server.hexlic"
