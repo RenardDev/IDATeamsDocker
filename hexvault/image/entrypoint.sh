@@ -142,6 +142,8 @@ git_pull() {
     git -C "$GIT_WORK" reset --hard
     git -C "$GIT_WORK" clean -xfd
   fi
+
+  mkdir -p "$REMOTE_DIR"
 }
 
 git_commit_push() {
@@ -173,6 +175,7 @@ pack_data_dir() {
 
 split_archive_into_remote() {
   local bs=$((GIT_CHUNK_SIZE_MB * 1000000))
+  mkdir -p "$REMOTE_DIR"
   rm -f "${REMOTE_DIR}/data.tar.zst.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true
   split -b "$bs" -d -a 3 "$ARCHIVE_PATH" "${REMOTE_DIR}/data.tar.zst.part_"
 }
