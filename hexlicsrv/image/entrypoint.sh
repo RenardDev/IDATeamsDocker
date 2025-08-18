@@ -16,7 +16,7 @@ DATA_PATH="${INSTALL_PATH}/data"
 SCHEMA_LOCK="${CONFIG_PATH}/hexlicsrv_schema.lock"
 
 GIT_WORK="${INSTALL_PATH}/_gitmirror"
-REMOTE_DIR="${GIT_WORK}/backups/${GIT_HOST_ID}"
+REMOTE_DIR="${GIT_WORK}/backups/${GIT_HOST_ID:-hexlicsrv}"
 
 ARCHIVE_NAME="data.tar.zst"
 ARCHIVE_PATH="${INSTALL_PATH}/${ARCHIVE_NAME}"
@@ -358,6 +358,12 @@ EOF
 ) >/dev/null 2>&1 || die "CRT failed"
 
 rm -f "${CONFIG_PATH}/hexlicsrv.csr"
+
+chown hexlicsrv:hexlicsrv \
+  "$CONFIG_FILE" \
+  "${CONFIG_PATH}/hexlicsrv.crt" \
+  "${CONFIG_PATH}/hexlicsrv.key" \
+  "${INSTALL_PATH}/license_server.hexlic" || true
 
 chmod 640 \
   "$CONFIG_FILE" \

@@ -16,7 +16,7 @@ DATA_PATH="${INSTALL_PATH}/data"
 SCHEMA_LOCK="${CONFIG_PATH}/lumina_schema.lock"
 
 GIT_WORK="${INSTALL_PATH}/_dbgit"
-REMOTE_DIR="${GIT_WORK}/backups/${GIT_HOST_ID}"
+REMOTE_DIR="${GIT_WORK}/backups/${GIT_HOST_ID:-lumina}"
 
 DUMP_PATH="${INSTALL_PATH}/dump.sql"
 
@@ -246,7 +246,6 @@ db_write_manifest() {
 
   jq -n \
     --arg    host_id "$GIT_HOST_ID" \
-    --arg    db_name "$MYSQL_DATABASE" \
     --arg    timestamp_utc "$ts" \
     --argjson chunk_size_mb "$GIT_CHUNK_SIZE_MB" \
     --argjson archive_size_bytes "$size" \
@@ -254,7 +253,6 @@ db_write_manifest() {
     --argjson chunk_count "$(ls "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"* 2>/dev/null | wc -l)" \
     '{
       host_id:            $host_id,
-      database:           $db_name,
       timestamp_utc:      $timestamp_utc,
       chunk_size_mb:      $chunk_size_mb,
       chunk_count:        $chunk_count,
@@ -429,6 +427,12 @@ EOF
 ) >/dev/null 2>&1 || die "CRT failed"
 
 rm -f "${CONFIG_PATH}/lumina.csr"
+
+chown lumina:lumina \
+  "$CONFIG_FILE" \
+  "${CONFIG_PATH}/lumina.crt" \
+  "${CONFIG_PATH}/lumina.key" \
+  "${INSTALL_PATH}/lumina_server.hexlic" || true
 
 chmod 640 \
   "$CONFIG_FILE" \

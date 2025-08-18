@@ -357,6 +357,12 @@ EOF
 
 rm -f "${CONFIG_PATH}/hexvault.csr"
 
+chmod hexvault:hexvault \
+  "$CONFIG_FILE" \
+  "${CONFIG_PATH}/hexvault.crt" \
+  "${CONFIG_PATH}/hexvault.key" \
+  "${INSTALL_PATH}/teams_server.hexlic" || true
+
 chmod 640 \
   "$CONFIG_FILE" \
   "${CONFIG_PATH}/hexvault.crt" \
