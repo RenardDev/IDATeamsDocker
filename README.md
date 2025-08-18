@@ -9,7 +9,9 @@ Supported version:
 ## CA (NOTE)
 Before you start doing anything, you need to generate your own CA certificate. This can be done like this:
 ```bash
-openssl req -x509 -newkey rsa:4096 -sha512     -keyout CA.key -out CA.pem -days 3650 -nodes     -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
+openssl req -x509 \
+    -newkey rsa:4096 -sha512 -keyout CA.key -out CA.pem -days 3650 -nodes \
+    -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
 ```
 Now you have two files (the key and the certificate itself), you need to place these two files in the CA folders (`./CA`). Also you need to replace the CA in IDA itself, which is done in another step below.
 
