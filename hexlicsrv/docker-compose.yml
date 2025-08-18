@@ -11,7 +11,7 @@ services:
       LICENSE_HOST: reversing.example.com
       LICENSE_PORT: "65434"
 
-      # Git sync (filesystem)
+      # Git sync
       # GIT_SYNC_ENABLED: "true"
       # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
       # GIT_BRANCH: main

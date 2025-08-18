@@ -49,7 +49,7 @@ services:
       VAULT_HOST: reversing.example.com
       VAULT_PORT: "65433"
 
-      # Git sync (MySQL dump)
+      # Git sync
       # GIT_SYNC_ENABLED: "true"
       # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
       # GIT_BRANCH: main
