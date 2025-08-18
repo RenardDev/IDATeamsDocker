@@ -55,8 +55,8 @@ services:
       # GIT_BRANCH: main
       # GIT_HOST_ID: lumina
       # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: Lumina DB CI
-      # GIT_COMMIT_EMAIL: lumina-db@example.com
+      # GIT_COMMIT_NAME: Lumina CI
+      # GIT_COMMIT_EMAIL: lumina@example.com
 
       # Fine-grained PAT (HTTPS)
       # GIT_AUTH_TOKEN: github_pat_*
