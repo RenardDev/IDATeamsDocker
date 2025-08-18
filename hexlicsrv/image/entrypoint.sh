@@ -153,40 +153,11 @@ git_pull() {
 # Packing / Splitting helpers (FS)
 ################################################################
 
-pack_data_dir() {
-  rm -f "$ARCHIVE_PATH"
-  tar -C "$DATA_PATH" -cf - . | zstd -q -T0 -19 -o "$ARCHIVE_PATH"
-  local size sha; size="$(stat -c '%s' "$ARCHIVE_PATH")"; sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
-  printf '%s %s\n' "$size" "$sha"
-}
-
-split_archive_into_remote() {
-  local bs=$((GIT_CHUNK_SIZE_MB * 1000000))
-  mkdir -p "$REMOTE_DIR"
-  rm -f "${REMOTE_DIR}/data.tar.zst.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true
-  split -b "$bs" -d -a 3 "$ARCHIVE_PATH" "${REMOTE_DIR}/data.tar.zst.part_"
-}
-
-assemble_remote_archive() {
-  local dest="$1"; rm -f "$dest"
-  # shellcheck disable=SC2046
-  cat $(ls "${REMOTE_DIR}/data.tar.zst.part_"* 2>/dev/null | sort) > "$dest"
-}
-
-write_manifest() {
-  local ts="$1" size="$2" sha="$3"
-  jq -n --arg host_id "$GIT_HOST_ID" --arg timestamp_utc "$ts" \
-    --argjson chunk_size_mb "$GIT_CHUNK_SIZE_MB" \
-    --argjson archive_size_bytes "$size" \
-    --arg archive_sha256 "$sha" \
-    --argjson chunk_count "$(ls "${REMOTE_DIR}/data.tar.zst.part_"* 2>/dev/null | wc -l)" \
-    '{host_id:$host_id,timestamp_utc:$timestamp_utc,chunk_size_mb:$chunk_size_mb,chunk_count:$chunk_count,archive_size_bytes:$archive_size_bytes,archive_sha256:$archive_sha256}' \
-    > "${REMOTE_DIR}/${MANIFEST_NAME}"
-}
-
-read_remote_manifest() {
-  [[ -f "${REMOTE_DIR}/${MANIFEST_NAME}" ]] && cat "${REMOTE_DIR}/${MANIFEST_NAME}" || echo ""
-}
+pack_data_dir() { rm -f "$ARCHIVE_PATH"; tar -C "$DATA_PATH" -cf - . | zstd -q -T0 -19 -o "$ARCHIVE_PATH"; local size sha; size="$(stat -c '%s' "$ARCHIVE_PATH")"; sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"; printf '%s %s\n' "$size" "$sha"; }
+split_archive_into_remote() { local bs=$((GIT_CHUNK_SIZE_MB * 1000000)); mkdir -p "$REMOTE_DIR"; rm -f "${REMOTE_DIR}/data.tar.zst.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true; split -b "$bs" -d -a 3 "$ARCHIVE_PATH" "${REMOTE_DIR}/data.tar.zst.part_"; }
+assemble_remote_archive() { local dest="$1"; rm -f "$dest"; cat $(ls "${REMOTE_DIR}/data.tar.zst.part_"* 2>/dev/null | sort) > "$dest"; }
+write_manifest() { local ts="$1" size="$2" sha="$3"; jq -n --arg host_id "$GIT_HOST_ID" --arg timestamp_utc "$ts" --argjson chunk_size_mb "$GIT_CHUNK_SIZE_MB" --argjson archive_size_bytes "$size" --arg archive_sha256 "$sha" --argjson chunk_count "$(ls "${REMOTE_DIR}/data.tar.zst.part_"* 2>/dev/null | wc -l)" '{host_id:$host_id,timestamp_utc:$timestamp_utc,chunk_size_mb:$chunk_size_mb,chunk_count:$chunk_count,archive_size_bytes:$archive_size_bytes,archive_sha256:$archive_sha256}' > "${REMOTE_DIR}/${MANIFEST_NAME}"; }
+read_remote_manifest() { [[ -f "${REMOTE_DIR}/${MANIFEST_NAME}" ]] && cat "${REMOTE_DIR}/${MANIFEST_NAME}" || echo ""; }
 
 restore_from_remote_fs() {
   ls "${REMOTE_DIR}/data.tar.zst.part_"* >/dev/null 2>&1 || die "Remote parts not found"
