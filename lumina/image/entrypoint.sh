@@ -153,21 +153,21 @@ ensure_tools_commits() { local m=(); for t in git ssh-keyscan zstd jq tar sha256
 GH_MODE=""
 gh_git_mode_detect() { [[ -n "$GH_REMOTE" ]] || die "GH_REMOTE is required for commits mode"; if [[ "$GH_REMOTE" =~ ^https:// ]]; then [[ -n "$SYNC_AUTH_TOKEN" ]] && GH_MODE="SYNC" || GH_MODE="HTTPS_PULLONLY"; elif [[ "$GH_REMOTE" =~ ^git@ || "$GH_REMOTE" =~ ^ssh:// ]]; then [[ -n "$GH_SSH_PRIVATE_KEY" ]] || die "SSH remote requires GH_SSH_PRIVATE_KEY"; GH_MODE="SYNC"; else die "Unsupported GH_REMOTE scheme"; fi; log "Commits mode: ${GH_MODE}"; }
 gh_git_setup() {
-  mkdir -p "$GH_WORK"
+  mkdir -p "$WORK_DIR"
 
   # Если рабочая папка существует, но НЕ git-репозиторий — подчистим.
-  if [[ -d "$GH_WORK" && ! -d "$GH_WORK/.git" ]]; then
+  if [[ -d "$WORK_DIR" && ! -d "$WORK_DIR/.git" ]]; then
     # Подчищаем ТОЛЬКО наши рабочие каталоги внутри INSTALL_PATH.
-    case "$GH_WORK" in
+    case "$WORK_DIR" in
       "$INSTALL_PATH"/_gitmirror*|"$INSTALL_PATH"/_dbgit*)
-        log "Workdir exists but is not a git repo -> cleaning: $GH_WORK"
-        rm -rf "$GH_WORK"
+        log "Workdir exists but is not a git repo -> cleaning: $WORK_DIR"
+        rm -rf "$WORK_DIR"
         ;;
       *)
-        die "Workdir exists and is not a git repo (won't remove): $GH_WORK"
+        die "Workdir exists and is not a git repo (won't remove): $WORK_DIR"
         ;;
     esac
-    mkdir -p "$GH_WORK"
+    mkdir -p "$WORK_DIR"
   fi
 
   local url="$GH_REMOTE"
@@ -191,22 +191,22 @@ gh_git_setup() {
     fi
   fi
 
-  if [[ ! -d "$GH_WORK/.git" ]]; then
-    log "Cloning repo (branch: ${GH_BRANCH}) into ${GH_WORK}"
-    if ! git clone --depth=1 --branch "$GH_BRANCH" "$url" "$GH_WORK" 2>/dev/null; then
-      git clone --depth=1 "$url" "$GH_WORK"
-      git -C "$GH_WORK" checkout -B "$GH_BRANCH"
+  if [[ ! -d "$WORK_DIR/.git" ]]; then
+    log "Cloning repo (branch: ${GH_BRANCH}) into ${WORK_DIR}"
+    if ! git clone --depth=1 --branch "$GH_BRANCH" "$url" "$WORK_DIR" 2>/dev/null; then
+      git clone --depth=1 "$url" "$WORK_DIR"
+      git -C "$WORK_DIR" checkout -B "$GH_BRANCH"
     fi
   else
-    if git -C "$GH_WORK" remote | grep -q '^origin$'; then
-      git -C "$GH_WORK" remote set-url origin "$url"
+    if git -C "$WORK_DIR" remote | grep -q '^origin$'; then
+      git -C "$WORK_DIR" remote set-url origin "$url"
     else
-      git -C "$GH_WORK" remote add origin "$url"
+      git -C "$WORK_DIR" remote add origin "$url"
     fi
   fi
 
-  git -C "$GH_WORK" config user.name  "${GH_COMMIT_NAME:-Hex CI}"
-  git -C "$GH_WORK" config user.email "${GH_COMMIT_EMAIL:-hex@example.com}"
+  git -C "$WORK_DIR" config user.name  "${GH_COMMIT_NAME:-Hex CI}"
+  git -C "$WORK_DIR" config user.email "${GH_COMMIT_EMAIL:-hex@example.com}"
   mkdir -p "$REMOTE_DIR"
 }
 
