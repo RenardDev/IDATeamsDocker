@@ -264,7 +264,13 @@ perform_releases_db_sync() {
   if [[ -z "$GH_OWNER" || -z "$GH_REPO" ]]; then log "GH_OWNER/GH_REPO not set -> skip"; return 0; fi
 
   gh_ensure_release
-  [[ -n "$GH_REL_ID" ]] || { log "No release id (likely RO with no release) -> skip"; return 0; }
+  if [[ -z "$GH_REL_ID" ]]; then
+    if [[ -z "$GH_TOKEN" ]]; then
+      log "RO mode: release not found or inaccessible -> keeping DB as-is"
+      return 0
+    fi
+    return 0
+  fi
 
   local tmp="${INSTALL_PATH}/_ghrel"; rm -rf "$tmp"; mkdir -p "$tmp"
 
@@ -272,6 +278,31 @@ perform_releases_db_sync() {
     local man sha_remote
     man="$(cat "${tmp}/${MANIFEST_NAME}")"
     sha_remote="$(jq -r '.archive_sha256' <<<"$man")"
+
+    if [[ -z "$GH_TOKEN" ]]; then
+      log "RO mode: force-restore DB from release '${GH_RELEASE_TAG}'"
+      local cnt i part
+      cnt="$(jq -r '.chunk_count' <<<"$man")"
+      [[ -n "$cnt" && "$cnt" != "null" ]] || die "Invalid manifest (chunk_count)"
+      for ((i=0;i<cnt;i++)); do
+        part=$(printf '%s.part_%03d' "$ARCHIVE_NAME" "$i")
+        gh_download_asset_to "$part" "${tmp}/${part}" || die "Missing asset $part"
+      done
+      cat "${tmp}/${ARCHIVE_NAME}.part_"* > "${tmp}/${ARCHIVE_NAME}"
+      local sha_local; sha_local="$(sha256sum "${tmp}/${ARCHIVE_NAME}" | awk '{print $1}')"
+      [[ "$sha_local" == "$sha_remote" ]] || die "DB checksum mismatch: remote=$sha_remote local=$sha_local"
+
+      if ! mysql --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
+           -e "DROP DATABASE IF EXISTS \`${MYSQL_DATABASE}\`; CREATE DATABASE \`${MYSQL_DATABASE}\`;"; then
+        log "WARN: DROP/CREATE DATABASE failed (insufficient privileges?) — importing over existing schema"
+      fi
+
+      db_import_archive "${tmp}/${ARCHIVE_NAME}"
+      SKIP_SCHEMA_RECREATE=1
+      log "RO DB restore done (sha=$sha_remote)"
+      rm -rf "$tmp"
+      return 0
+    fi
 
     if db_is_empty; then
       log "DB is empty -> restoring from release '${GH_RELEASE_TAG}'"
@@ -292,23 +323,20 @@ perform_releases_db_sync() {
       return 0
     fi
 
-    if [[ -n "$GH_TOKEN" ]]; then
-      local size sha; read -r size sha <<<"$(db_dump)"
-      if [[ "$sha" != "$sha_remote" ]]; then
-        log "DB differs from release -> uploading new dump"
-        split_archive_into_remote
-        gh_delete_assets_by_prefix "${ARCHIVE_NAME}.part_"
-        gh_delete_assets_by_prefix "${MANIFEST_NAME}"
-        for f in "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"*; do gh_upload_asset "$f"; done
-        write_manifest "$(now_utc)" "$size" "$sha"
-        gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
-      else
-        log "DB matches release (sha=$sha) -> nothing to upload"
-      fi
+    local size sha; read -r size sha <<<"$(db_dump)"
+    if [[ "$sha" != "$sha_remote" ]]; then
+      log "DB differs from release -> uploading new dump"
+      split_archive_into_remote
+      gh_delete_assets_by_prefix "${ARCHIVE_NAME}.part_"
+      gh_delete_assets_by_prefix "${MANIFEST_NAME}"
+      for f in "${REMOTE_DIR}/${ARCHIVE_NAME}.part_"*; do gh_upload_asset "$f"; done
+      write_manifest "$(now_utc)" "$size" "$sha"
+      gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
     else
-      log "No GH_TOKEN -> read-only mode, skipping upload"
+      log "DB matches release (sha=$sha) -> nothing to upload"
     fi
-    rm -rf "$tmp"; return 0
+    rm -rf "$tmp"
+    return 0
   fi
 
   if [[ -n "$GH_TOKEN" && ! db_is_empty ]]; then
@@ -321,9 +349,11 @@ perform_releases_db_sync() {
     write_manifest "$(now_utc)" "$size" "$sha"
     gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
   else
-    log "No manifest and no token -> nothing to do (RO)"
+    log "RO mode or empty DB: release has no manifest -> leaving DB as-is"
   fi
-  rm -rf "$tmp"; return 0
+
+  rm -rf "$tmp"
+  return 0
 }
 
 ################################################################

@@ -232,7 +232,13 @@ perform_releases_sync() {
   if [[ -z "$GH_OWNER" || -z "$GH_REPO" ]]; then log "GH_OWNER/GH_REPO not set -> skip"; return 0; fi
 
   gh_ensure_release
-  [[ -n "$GH_REL_ID" ]] || { log "No release id (likely RO with no release) -> skip"; return 0; }
+  if [[ -z "$GH_REL_ID" ]]; then
+    if [[ -z "$GH_TOKEN" ]]; then
+      log "RO mode: release not found or inaccessible -> keeping local as-is"
+      return 0
+    fi
+    return 0
+  fi
 
   local tmp="${INSTALL_PATH}/_ghrel"; rm -rf "$tmp"; mkdir -p "$tmp"
 
@@ -240,6 +246,27 @@ perform_releases_sync() {
     local man sha_remote
     man="$(cat "${tmp}/${MANIFEST_NAME}")"
     sha_remote="$(jq -r '.archive_sha256' <<<"$man")"
+
+    if [[ -z "$GH_TOKEN" ]]; then
+      log "RO mode: force-restore from release '${GH_RELEASE_TAG}'"
+      local cnt i part
+      cnt="$(jq -r '.chunk_count' <<<"$man")"
+      [[ -n "$cnt" && "$cnt" != "null" ]] || die "Invalid manifest (chunk_count)"
+      for ((i=0;i<cnt;i++)); do
+        part=$(printf 'data.tar.zst.part_%03d' "$i")
+        gh_download_asset_to "$part" "${tmp}/${part}" || die "Missing asset $part"
+      done
+      cat "${tmp}"/data.tar.zst.part_* > "${tmp}/${ARCHIVE_NAME}"
+      local sha_local; sha_local="$(sha256sum "${tmp}/${ARCHIVE_NAME}" | awk '{print $1}')"
+      [[ "$sha_local" == "$sha_remote" ]] || die "Checksum mismatch: remote=$sha_remote local=$sha_local"
+      rm -rf "${DATA_PATH:?}/"* "${DATA_PATH}/."[!.]* 2>/dev/null || true
+      mkdir -p "$DATA_PATH"
+      tar -C "$DATA_PATH" -xpf "${tmp}/${ARCHIVE_NAME}"
+      SKIP_SCHEMA_RECREATE=1
+      log "RO restore done (sha=$sha_remote)"
+      rm -rf "$tmp"
+      return 0
+    fi
 
     if [[ -z "$(ls -A "$DATA_PATH" 2>/dev/null || true)" ]]; then
       log "Local FS empty -> restoring from release '${GH_RELEASE_TAG}'"
@@ -262,23 +289,20 @@ perform_releases_sync() {
       return 0
     fi
 
-    if [[ -n "$GH_TOKEN" ]]; then
-      local size sha; read -r size sha <<<"$(pack_data_dir)"
-      if [[ "$sha" != "$sha_remote" ]]; then
-        log "Local FS differs from release -> uploading new snapshot"
-        split_archive_into_remote
-        gh_delete_assets_by_prefix "data.tar.zst.part_"
-        gh_delete_assets_by_prefix "${MANIFEST_NAME}"
-        for f in "${REMOTE_DIR}"/data.tar.zst.part_*; do gh_upload_asset "$f"; done
-        write_manifest "$(now_utc)" "$size" "$sha"
-        gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
-      else
-        log "Local FS matches release (sha=$sha) -> nothing to upload"
-      fi
+    local size sha; read -r size sha <<<"$(pack_data_dir)"
+    if [[ "$sha" != "$sha_remote" ]]; then
+      log "Local FS differs from release -> uploading new snapshot"
+      split_archive_into_remote
+      gh_delete_assets_by_prefix "data.tar.zst.part_"
+      gh_delete_assets_by_prefix "${MANIFEST_NAME}"
+      for f in "${REMOTE_DIR}"/data.tar.zst.part_*; do gh_upload_asset "$f"; done
+      write_manifest "$(now_utc)" "$size" "$sha"
+      gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
     else
-      log "No GH_TOKEN -> read-only mode, skipping upload"
+      log "Local FS matches release (sha=$sha) -> nothing to upload"
     fi
-    rm -rf "$tmp"; return 0
+    rm -rf "$tmp"
+    return 0
   fi
 
   if [[ -n "$GH_TOKEN" && -n "$(ls -A "$DATA_PATH" 2>/dev/null || true)" ]]; then
@@ -291,9 +315,11 @@ perform_releases_sync() {
     write_manifest "$(now_utc)" "$size" "$sha"
     gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
   else
-    log "No manifest and no token -> nothing to do (RO)"
+    log "RO mode or empty local: release has no manifest -> leaving local as-is"
   fi
-  rm -rf "$tmp"; return 0
+
+  rm -rf "$tmp"
+  return 0
 }
 
 ################################################################
