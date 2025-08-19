@@ -100,7 +100,7 @@ db_is_empty() {
 
 db_dump() {
   rm -f "$DUMP_PATH" "$ARCHIVE_PATH"
-  log "Dumping DB '${MYSQL_DATABASE}' -> $ARCHIVE_PATH"
+  log "Dumping DB '${MYSQL_DATABASE}' -> $ARCHIVE_PATH" >&2
   mysqldump --protocol=TCP -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "-p${MYSQL_PASSWORD}" \
     --single-transaction --quick --routines --events --triggers --hex-blob --no-tablespaces \
     --databases "$MYSQL_DATABASE" > "$DUMP_PATH"
