@@ -7,29 +7,25 @@ services:
       context: ./image
     restart: always
     environment:
-      # App
+      # === App ===
       LICENSE_HOST: reversing.example.com
       LICENSE_PORT: "65434"
 
-      # Git sync
-      # GIT_SYNC_ENABLED: "true"
-      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
-      # GIT_BRANCH: main
-      # GIT_HOST_ID: hexlicsrv
-      # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: HexLicSrv CI
-      # GIT_COMMIT_EMAIL: hexlicsrv@example.com
-
-      # Fine-grained PAT (HTTPS)
-      # GIT_AUTH_TOKEN: github_pat_*
-
-      # SSH alternative:
-      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
-      # GIT_SSH_PRIVATE_KEY: |-
-      #   -----BEGIN OPENSSH PRIVATE KEY-----
-      #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+      # === Release sync (GitHub Releases) ===
+      # Enable sync with a GitHub Release
+      # RELEASE_SYNC_ENABLED: "true"
+      # Repository owner/name
+      # GH_OWNER: RenardDev
+      # GH_REPO: IDATeams
+      # Release tag and display name
+      # GH_RELEASE_TAG: hexlicsrv-snapshot
+      # GH_RELEASE_NAME: HexLicSrv FS Snapshot
+      # Host ID used in manifest.json (optional)
+      # GH_HOST_ID: hexlicsrv
+      # Chunk size (MB) when splitting the archive
+      # GH_CHUNK_SIZE_MB: "49"
+      # Token (PAT) required for upload/private release access
+      # GH_TOKEN: github_pat_***
 
     volumes:
       - ./CA:/opt/hexlicsrv/CA

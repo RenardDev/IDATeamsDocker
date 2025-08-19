@@ -34,45 +34,36 @@ services:
       context: ./image
     restart: always
     environment:
-      # DB for app & backup
+      # === DB for app & snapshot ===
       MYSQL_HOST: db
       MYSQL_PORT: "3306"
       MYSQL_DATABASE: lumina
       MYSQL_USER: lumina
       MYSQL_PASSWORD: lumina
 
-      # App
+      # === App ===
       LUMINA_HOST: reversing.example.com
       LUMINA_PORT: "443"
 
-      # Optional
-      VAULT_HOST: reversing.example.com
-      VAULT_PORT: "65433"
+      # === Optional: link to Vault (affects schema type) ===
+      # VAULT_HOST: reversing.example.com
+      # VAULT_PORT: "65433"
 
-      # Git sync
-      # GIT_SYNC_ENABLED: "true"
-      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
-      # GIT_BRANCH: main
-      # GIT_HOST_ID: lumina
-      # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: Lumina CI
-      # GIT_COMMIT_EMAIL: lumina@example.com
-
-      # Fine-grained PAT (HTTPS)
-      # GIT_AUTH_TOKEN: github_pat_*
-
-      # SSH alternative:
-      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
-      # GIT_SSH_PRIVATE_KEY: |-
-      #   -----BEGIN OPENSSH PRIVATE KEY-----
-      #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+      # === Release sync (GitHub Releases) ===
+      # RELEASE_SYNC_ENABLED: "true"
+      # GH_OWNER: RenardDev
+      # GH_REPO: IDATeams
+      # GH_RELEASE_TAG: lumina-snapshot
+      # GH_RELEASE_NAME: Lumina Snapshot
+      # GH_HOST_ID: lumina
+      # GH_CHUNK_SIZE_MB: "49"
+      # GH_TOKEN: github_pat_***
 
     volumes:
       - ./CA:/opt/lumina/CA
       - ./config:/opt/lumina/config
       - ./logs:/opt/lumina/logs
       - ./data:/opt/lumina/data
+
     ports:
       - "443:443"

@@ -7,29 +7,19 @@ services:
       context: ./image
     restart: always
     environment:
-      # App
+      # === App ===
       VAULT_HOST: reversing.example.com
       VAULT_PORT: "65433"
 
-      # Git sync
-      # GIT_SYNC_ENABLED: "true"
-      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
-      # GIT_BRANCH: main
-      # GIT_HOST_ID: hexvault
-      # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: HexVault CI
-      # GIT_COMMIT_EMAIL: hexvault@example.com
-
-      # Fine-grained PAT (HTTPS)
-      # GIT_AUTH_TOKEN: github_pat_*
-
-      # SSH alternative:
-      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
-      # GIT_SSH_PRIVATE_KEY: |-
-      #   -----BEGIN OPENSSH PRIVATE KEY-----
-      #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+      # === Release sync (GitHub Releases) ===
+      # RELEASE_SYNC_ENABLED: "true"
+      # GH_OWNER: RenardDev
+      # GH_REPO: IDATeams
+      # GH_RELEASE_TAG: hexvault-snapshot
+      # GH_RELEASE_NAME: HexVault FS Snapshot
+      # GH_HOST_ID: hexvault
+      # GH_CHUNK_SIZE_MB: "49"
+      # GH_TOKEN: github_pat_***
 
     volumes:
       - ./CA:/opt/hexvault/CA
