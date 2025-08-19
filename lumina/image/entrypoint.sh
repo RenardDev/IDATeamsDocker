@@ -153,19 +153,63 @@ ensure_tools_commits() { local m=(); for t in git ssh-keyscan zstd jq tar sha256
 GH_MODE=""
 gh_git_mode_detect() { [[ -n "$GH_REMOTE" ]] || die "GH_REMOTE is required for commits mode"; if [[ "$GH_REMOTE" =~ ^https:// ]]; then [[ -n "$SYNC_AUTH_TOKEN" ]] && GH_MODE="SYNC" || GH_MODE="HTTPS_PULLONLY"; elif [[ "$GH_REMOTE" =~ ^git@ || "$GH_REMOTE" =~ ^ssh:// ]]; then [[ -n "$GH_SSH_PRIVATE_KEY" ]] || die "SSH remote requires GH_SSH_PRIVATE_KEY"; GH_MODE="SYNC"; else die "Unsupported GH_REMOTE scheme"; fi; log "Commits mode: ${GH_MODE}"; }
 gh_git_setup() {
-  mkdir -p "$WORK_DIR"; local url="$GH_REMOTE"
-  if [[ "$GH_MODE" == "SYNC" && "$GH_REMOTE" =~ ^https:// && -n "$SYNC_AUTH_TOKEN" ]]; then url="https://x-access-token:${SYNC_AUTH_TOKEN}@${GH_REMOTE#https://}"; fi
-  if [[ "$GH_REMOTE" =~ ^git@ || "$GH_REMOTE" =~ ^ssh:// ]]; then
-    mkdir -p /root/.ssh && chmod 700 /root/.ssh; local key="/root/.ssh/id_ed25519"
-    if [[ -n "$GH_SSH_PRIVATE_KEY" ]]; then grep -q "BEGIN OPENSSH PRIVATE KEY" <<<"$GH_SSH_PRIVATE_KEY" || key="/root/.ssh/id_rsa"; printf '%s\n' "$GH_SSH_PRIVATE_KEY" > "$key"; chmod 600 "$key"; fi
-    if [[ -n "$GH_KNOWN_HOSTS" ]]; then printf '%s\n' "$GH_KNOWN_HOSTS" > /root/.ssh/known_hosts; chmod 644 /root/.ssh/known_hosts; export GIT_SSH_COMMAND="ssh -i ${key} -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=yes"; else export GIT_SSH_COMMAND="ssh -i ${key} -o StrictHostKeyChecking=no"; fi
+  mkdir -p "$GH_WORK"
+
+  # Если рабочая папка существует, но НЕ git-репозиторий — подчистим.
+  if [[ -d "$GH_WORK" && ! -d "$GH_WORK/.git" ]]; then
+    # Подчищаем ТОЛЬКО наши рабочие каталоги внутри INSTALL_PATH.
+    case "$GH_WORK" in
+      "$INSTALL_PATH"/_gitmirror*|"$INSTALL_PATH"/_dbgit*)
+        log "Workdir exists but is not a git repo -> cleaning: $GH_WORK"
+        rm -rf "$GH_WORK"
+        ;;
+      *)
+        die "Workdir exists and is not a git repo (won't remove): $GH_WORK"
+        ;;
+    esac
+    mkdir -p "$GH_WORK"
   fi
-  if [[ ! -d "$WORK_DIR/.git" ]]; then
-    if [[ -z "$(ls -A "$WORK_DIR" 2>/dev/null)" ]]; then log "Cloning repo (branch: ${GH_BRANCH}) into ${WORK_DIR}"; if ! git clone --depth=1 --branch "$GH_BRANCH" "$url" "$WORK_DIR" 2>/dev/null; then git clone --depth=1 "$url" "$WORK_DIR"; git -C "$WORK_DIR" checkout -B "$GH_BRANCH"; fi
-    else die "WORK_DIR exists but is not a git repo: $WORK_DIR"; fi
-  else if git -C "$WORK_DIR" remote | grep -q '^origin$'; then git -C "$WORK_DIR" remote set-url origin "$url"; else git -C "$WORK_DIR" remote add origin "$url"; fi; fi
-  git -C "$WORK_DIR" config user.name  "$GH_COMMIT_NAME"; git -C "$WORK_DIR" config user.email "$GH_COMMIT_EMAIL"; mkdir -p "$REMOTE_DIR"
+
+  local url="$GH_REMOTE"
+  if [[ "$GH_MODE" == "SYNC" && "$GH_REMOTE" =~ ^https:// && -n "$SYNC_AUTH_TOKEN" ]]; then
+    url="https://x-access-token:${SYNC_AUTH_TOKEN}@${GH_REMOTE#https://}"
+  fi
+
+  # SSH подготовка
+  if [[ "$GH_REMOTE" =~ ^git@ || "$GH_REMOTE" =~ ^ssh:// ]]; then
+    mkdir -p /root/.ssh && chmod 700 /root/.ssh
+    local key="/root/.ssh/id_ed25519"
+    if [[ -n "${GH_SSH_PRIVATE_KEY:-}" ]]; then
+      grep -q "BEGIN OPENSSH PRIVATE KEY" <<<"$GH_SSH_PRIVATE_KEY" || key="/root/.ssh/id_rsa"
+      printf '%s\n' "$GH_SSH_PRIVATE_KEY" > "$key"; chmod 600 "$key"
+    fi
+    if [[ -n "${GH_KNOWN_HOSTS:-}" ]]; then
+      printf '%s\n' "$GH_KNOWN_HOSTS" > /root/.ssh/known_hosts; chmod 644 /root/.ssh/known_hosts
+      export GIT_SSH_COMMAND="ssh -i ${key} -o UserKnownHostsFile=/root/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+    else
+      export GIT_SSH_COMMAND="ssh -i ${key} -o StrictHostKeyChecking=no"
+    fi
+  fi
+
+  if [[ ! -d "$GH_WORK/.git" ]]; then
+    log "Cloning repo (branch: ${GH_BRANCH}) into ${GH_WORK}"
+    if ! git clone --depth=1 --branch "$GH_BRANCH" "$url" "$GH_WORK" 2>/dev/null; then
+      git clone --depth=1 "$url" "$GH_WORK"
+      git -C "$GH_WORK" checkout -B "$GH_BRANCH"
+    fi
+  else
+    if git -C "$GH_WORK" remote | grep -q '^origin$'; then
+      git -C "$GH_WORK" remote set-url origin "$url"
+    else
+      git -C "$GH_WORK" remote add origin "$url"
+    fi
+  fi
+
+  git -C "$GH_WORK" config user.name  "${GH_COMMIT_NAME:-Hex CI}"
+  git -C "$GH_WORK" config user.email "${GH_COMMIT_EMAIL:-hex@example.com}"
+  mkdir -p "$REMOTE_DIR"
 }
+
 gh_git_pull_hard() {
   log "Fetching ${GH_BRANCH} (mode=${GH_MODE})"; git -C "$WORK_DIR" remote | grep -q '^origin$' || die "No 'origin' remote"
   if git -C "$WORK_DIR" ls-remote --heads origin "$GH_BRANCH" | grep -q "$GH_BRANCH"; then git -C "$WORK_DIR" fetch --depth=1 origin "$GH_BRANCH"; git -C "$WORK_DIR" checkout -B "$GH_BRANCH" "origin/${GH_BRANCH}"; git -C "$WORK_DIR" reset --hard "origin/${GH_BRANCH}"; git -C "$WORK_DIR" clean -xfd;
