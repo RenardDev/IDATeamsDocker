@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
+shopt -s nullglob
 
 ################################################################
 # Paths & Constants
@@ -51,10 +52,22 @@ GH_UPLOAD="https://uploads.github.com"
 # Utils
 ################################################################
 
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 now_utc() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
-ensure_tools() { local m=(); for t in curl tar zstd jq sha256sum split openssl mktemp; do command -v "$t" >/dev/null 2>&1 || m+=("$t"); done; ((${#m[@]}==0)) || die "Missing tools: ${m[*]}"; }
-chown_if_user() { local u="$1"; shift; if id -u "$u" >/dev/null 2>&1; then chown "$u:$u" "$@"; else chown root:root "$@"; fi; }
+log() { printf '[%s] %s\n' "$(now_utc)" "$*"; }
+die() { printf '[%s] ERROR: %s\n' "$(now_utc)" "$*" >&2; exit 1; }
+
+ensure_tools() {
+  local miss=()
+  for t in curl tar zstd jq sha256sum split openssl mktemp; do
+    command -v "$t" >/dev/null 2>&1 || miss+=("$t")
+  done
+  ((${#miss[@]}==0)) || die "Missing tools: ${miss[*]}"
+}
+
+chown_if_user() {
+  local u="$1"; shift
+  if id -u "$u" >/dev/null 2>&1; then chown "$u:$u" "$@"; else chown root:root "$@"; fi
+}
 
 ################################################################
 # Pack / Split
@@ -63,8 +76,11 @@ chown_if_user() { local u="$1"; shift; if id -u "$u" >/dev/null 2>&1; then chown
 pack_data_dir() {
   rm -f "$ARCHIVE_PATH"
   mkdir -p "$DATA_PATH"
+  log "Packing FS -> $ARCHIVE_PATH"
   tar -C "$DATA_PATH" -cf - . | zstd -q -T0 -19 -o "$ARCHIVE_PATH"
-  local size sha; size="$(stat -c '%s' "$ARCHIVE_PATH")"; sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
+  local size sha
+  size="$(stat -c '%s' "$ARCHIVE_PATH")"
+  sha="$(sha256sum "$ARCHIVE_PATH" | awk '{print $1}')"
   printf '%s %s\n' "$size" "$sha"
 }
 
@@ -72,12 +88,14 @@ split_archive_into_remote() {
   local bs=$((GH_CHUNK_SIZE_MB * 1000000))
   mkdir -p "$REMOTE_DIR"
   rm -f "${REMOTE_DIR}/data.tar.zst.part_"* "${REMOTE_DIR}/${MANIFEST_NAME}" || true
+  log "Splitting archive to ${REMOTE_DIR} by ${GH_CHUNK_SIZE_MB}MB"
   split -b "$bs" -d -a 3 "$ARCHIVE_PATH" "${REMOTE_DIR}/data.tar.zst.part_"
 }
 
 write_manifest() {
   local ts="$1" size="$2" sha="$3"
-  local cnt; cnt="$(ls "${REMOTE_DIR}/data.tar.zst.part_"* 2>/dev/null | wc -l)"
+  local parts=( "${REMOTE_DIR}/data.tar.zst.part_"* )
+  local cnt="${#parts[@]}"
   jq -n --arg host_id "${GH_HOST_ID:-hexlicsrv}" \
         --arg timestamp_utc "$ts" \
         --argjson chunk_size_mb "$GH_CHUNK_SIZE_MB" \
@@ -86,6 +104,7 @@ write_manifest() {
         --argjson chunk_count "$cnt" \
         '{host_id:$host_id,timestamp_utc:$timestamp_utc,chunk_size_mb:$chunk_size_mb,chunk_count:$chunk_count,archive_size_bytes:$archive_size_bytes,archive_sha256:$archive_sha256}' \
     > "${REMOTE_DIR}/${MANIFEST_NAME}"
+  log "Wrote manifest ${REMOTE_DIR}/${MANIFEST_NAME} (chunks=$cnt sha=$sha size=$size)"
 }
 
 ################################################################
@@ -94,7 +113,12 @@ write_manifest() {
 
 gh_init_auth() {
   GH_AUTH_HEADER=()
-  [[ -n "$GH_TOKEN" ]] && GH_AUTH_HEADER=(-H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28")
+  if [[ -n "$GH_TOKEN" ]]; then
+    GH_AUTH_HEADER=(-H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28")
+    log "GitHub mode: read-write (token present)"
+  else
+    log "GitHub mode: read-only (no token)"
+  fi
 }
 
 HTTP_STATUS=""; HTTP_BODY_FILE=""
@@ -131,9 +155,17 @@ gh_create_release() {
 gh_ensure_release() {
   local id; id="$(gh_get_release_id_by_tag)"
   if [[ -z "$id" ]]; then
-    if [[ -n "$GH_TOKEN" ]]; then id="$(gh_create_release)"; else GH_REL_ID=""; return 0; fi
+    if [[ -n "$GH_TOKEN" ]]; then
+      log "Release '${GH_RELEASE_TAG}' not found -> creating"
+      id="$(gh_create_release)"
+    else
+      log "Release '${GH_RELEASE_TAG}' not found and no GH_TOKEN -> staying in read-only (skip)"
+      GH_REL_ID=""
+      return 0
+    fi
   fi
   GH_REL_ID="$id"
+  log "Using release id=$GH_REL_ID tag=${GH_RELEASE_TAG}"
 }
 
 gh_list_assets() {
@@ -147,13 +179,18 @@ gh_delete_asset_id() {
   local id="$1"; local url="${GH_API}/repos/${GH_OWNER}/${GH_REPO}/releases/assets/${id}"
   http_json "DELETE" "$url"
   [[ "$HTTP_STATUS" =~ ^20[04]$ ]] || die "DELETE asset $id failed (HTTP $HTTP_STATUS)"
+  log "Deleted asset id=$id"
 }
 
 gh_delete_assets_by_prefix() {
   local prefix="$1"; local assets ids
   assets="$(gh_list_assets)"
   ids="$(jq -r --arg p "$prefix" '.[] | select(.name | startswith($p)) | .id' <<<"$assets")"
-  [[ -z "$ids" ]] || while read -r id; do [[ -n "$id" ]] && gh_delete_asset_id "$id"; done <<< "$ids"
+  if [[ -z "$ids" ]]; then
+    log "No assets to delete with prefix '$prefix'"
+    return 0
+  fi
+  while read -r id; do [[ -n "$id" ]] && gh_delete_asset_id "$id"; done <<< "$ids"
 }
 
 gh_upload_asset() {
@@ -161,6 +198,7 @@ gh_upload_asset() {
   local url="${GH_UPLOAD}/repos/${GH_OWNER}/${GH_REPO}/releases/${GH_REL_ID}/assets?name=${name}"
   local code; code="$(curl -sS -w '%{http_code}' "${GH_AUTH_HEADER[@]}" -H "Content-Type: application/octet-stream" --data-binary @"$file" "$url" -o /dev/null || true)"
   [[ "$code" =~ ^2[0-9][0-9]$ ]] || die "UPLOAD ${name} failed (HTTP ${code})"
+  log "Uploaded asset ${name}"
 }
 
 gh_download_asset_to() {
@@ -172,6 +210,7 @@ gh_download_asset_to() {
   local url="${GH_API}/repos/${GH_OWNER}/${GH_REPO}/releases/assets/${id}"
   local code; code="$(curl -L -sS -w '%{http_code}' "${GH_AUTH_HEADER[@]}" -H "Accept: application/octet-stream" -o "$out" "$url" || true)"
   [[ "$code" =~ ^2[0-9][0-9]$ ]] || die "DOWNLOAD ${name} failed (HTTP ${code})"
+  log "Downloaded asset ${name} -> ${out}"
 }
 
 ################################################################
@@ -180,44 +219,70 @@ gh_download_asset_to() {
 
 perform_releases_sync() {
   ensure_tools; gh_init_auth
-  [[ -n "$GH_OWNER" && -n "$GH_REPO" ]] || return 0
+  if [[ "${RELEASE_SYNC_ENABLED,,}" != "true" ]]; then log "Release sync disabled -> skip"; return 0; fi
+  if [[ -z "$GH_OWNER" || -z "$GH_REPO" ]]; then log "GH_OWNER/GH_REPO not set -> skip"; return 0; fi
+
   gh_ensure_release
-  [[ -n "$GH_REL_ID" ]] || return 0
+  [[ -n "$GH_REL_ID" ]] || { log "No release id (likely RO with no release) -> skip"; return 0; }
 
   local tmp="${INSTALL_PATH}/_ghrel"; rm -rf "$tmp"; mkdir -p "$tmp"
 
   if gh_download_asset_to "${MANIFEST_NAME}" "${tmp}/${MANIFEST_NAME}"; then
-    local man sha_remote; man="$(cat "${tmp}/${MANIFEST_NAME}")"; sha_remote="$(jq -r '.archive_sha256' <<<"$man")"
+    local man sha_remote
+    man="$(cat "${tmp}/${MANIFEST_NAME}")"
+    sha_remote="$(jq -r '.archive_sha256' <<<"$man")"
 
     if [[ -z "$(ls -A "$DATA_PATH" 2>/dev/null || true)" ]]; then
-      local cnt i part; cnt="$(jq -r '.chunk_count' <<<"$man")"; [[ -n "$cnt" && "$cnt" != "null" ]] || die "Invalid manifest"
-      for ((i=0;i<cnt;i++)); do part=$(printf 'data.tar.zst.part_%03d' "$i"); gh_download_asset_to "$part" "${tmp}/${part}" || die "Missing asset $part"; done
+      log "Local FS empty -> restoring from release '${GH_RELEASE_TAG}'"
+      local cnt i part
+      cnt="$(jq -r '.chunk_count' <<<"$man")"
+      [[ -n "$cnt" && "$cnt" != "null" ]] || die "Invalid manifest (chunk_count)"
+      for ((i=0;i<cnt;i++)); do
+        part=$(printf 'data.tar.zst.part_%03d' "$i")
+        gh_download_asset_to "$part" "${tmp}/${part}" || die "Missing asset $part"
+      done
       cat "${tmp}"/data.tar.zst.part_* > "${tmp}/${ARCHIVE_NAME}"
       local sha_local; sha_local="$(sha256sum "${tmp}/${ARCHIVE_NAME}" | awk '{print $1}')"
-      [[ "$sha_local" == "$sha_remote" ]] || die "Checksum mismatch"
+      [[ "$sha_local" == "$sha_remote" ]] || die "Checksum mismatch: remote=$sha_remote local=$sha_local"
       rm -rf "${DATA_PATH:?}/"* "${DATA_PATH}/."[!.]* 2>/dev/null || true
-      mkdir -p "$DATA_PATH"; tar -C "$DATA_PATH" -xpf "${tmp}/${ARCHIVE_NAME}"
-      SKIP_SCHEMA_RECREATE=1; rm -rf "$tmp"; return 0
+      mkdir -p "$DATA_PATH"
+      tar -C "$DATA_PATH" -xpf "${tmp}/${ARCHIVE_NAME}"
+      SKIP_SCHEMA_RECREATE=1
+      log "Restore completed"
+      rm -rf "$tmp"
+      return 0
     fi
 
     if [[ -n "$GH_TOKEN" ]]; then
       local size sha; read -r size sha <<<"$(pack_data_dir)"
       if [[ "$sha" != "$sha_remote" ]]; then
+        log "Local FS differs from release -> uploading new snapshot"
         split_archive_into_remote
-        gh_delete_assets_by_prefix "data.tar.zst.part_"; gh_delete_assets_by_prefix "${MANIFEST_NAME}"
+        gh_delete_assets_by_prefix "data.tar.zst.part_"
+        gh_delete_assets_by_prefix "${MANIFEST_NAME}"
         for f in "${REMOTE_DIR}"/data.tar.zst.part_*; do gh_upload_asset "$f"; done
-        write_manifest "$(now_utc)" "$size" "$sha"; gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
+        write_manifest "$(now_utc)" "$size" "$sha"
+        gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
+      else
+        log "Local FS matches release (sha=$sha) -> nothing to upload"
       fi
+    else
+      log "No GH_TOKEN -> read-only mode, skipping upload"
     fi
     rm -rf "$tmp"; return 0
   fi
 
   if [[ -n "$GH_TOKEN" && -n "$(ls -A "$DATA_PATH" 2>/dev/null || true)" ]]; then
+    log "No manifest at release but token present -> publishing initial snapshot"
     local size sha; read -r size sha <<<"$(pack_data_dir)"
     split_archive_into_remote
-    gh_delete_assets_by_prefix "data.tar.zst.part_"; gh_delete_assets_by_prefix "${MANIFEST_NAME}"
+    gh_delete_assets_by_prefix "data.tar.zst.part_"
+    gh_delete_assets_by_prefix "${MANIFEST_NAME}"
     for f in "${REMOTE_DIR}"/data.tar.zst.part_*; do gh_upload_asset "$f"; done
-    write_manifest "$(now_utc)" "$size" "$sha"; gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
+    write_manifest "$(now_utc)" "$size" "$sha"
+    gh_upload_asset "${REMOTE_DIR}/${MANIFEST_NAME}"
+  else
+    log "No manifest and no token -> nothing to do (RO)"
   fi
   rm -rf "$tmp"; return 0
 }
@@ -226,25 +291,42 @@ perform_releases_sync() {
 # Bootstrap & Launch
 ################################################################
 
+log "Bootstrap: creating directories"
 mkdir -p "$CA_PATH" "$CONFIG_PATH" "$LOGS_PATH" "$DATA_PATH"
 cd "$INSTALL_PATH" || die "Failed to cd into $INSTALL_PATH"
 
 CONFIG_FILE="${CONFIG_PATH}/hexlicsrv.conf"
-if [[ ! -f "$CONFIG_FILE" ]]; then echo "sqlite3;Data Source=${DATA_PATH}/hexlicsrv.sqlite3;" > "$CONFIG_FILE"; chmod 640 "$CONFIG_FILE"; fi
-if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then echo "Missing CA files" >&2; sleep 5; exit 1; fi
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "sqlite3;Data Source=${DATA_PATH}/hexlicsrv.sqlite3;" > "$CONFIG_FILE"
+  chmod 640 "$CONFIG_FILE"
+  log "Created default config $CONFIG_FILE"
+fi
 
-if [[ "${RELEASE_SYNC_ENABLED,,}" == "true" ]]; then perform_releases_sync; fi
+if [[ ! -f "${CA_PATH}/CA.pem" || ! -f "${CA_PATH}/CA.key" ]]; then
+  printf '[%s] ERROR: Missing CA files\n' "$(now_utc)" >&2
+  sleep 5
+  exit 1
+fi
 
+if [[ "${RELEASE_SYNC_ENABLED,,}" == "true" ]]; then perform_releases_sync; else log "Release sync disabled"; fi
+
+log "Patching license"
 python3 "${INSTALL_PATH}/license_patch.py" hexlicsrv || die "Patch failed"
 
 chown root:root "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm" || true
 chmod 755 "${INSTALL_PATH}/license_server" "${INSTALL_PATH}/lsadm" || true
 
 if [[ ! -f "$SCHEMA_LOCK" ]]; then
-  if [[ "$SKIP_SCHEMA_RECREATE" -eq 0 ]]; then "${INSTALL_PATH}/license_server" -f "$CONFIG_FILE" --recreate-schema; fi
+  if [[ "$SKIP_SCHEMA_RECREATE" -eq 0 ]]; then
+    log "Recreating schema..."
+    "${INSTALL_PATH}/license_server" -f "$CONFIG_FILE" --recreate-schema
+  else
+    log "Schema recreate skipped (restored from release)"
+  fi
   touch "$SCHEMA_LOCK"
 fi
 
+log "Generating TLS cert via local CA"
 openssl req -newkey rsa:2048 -keyout "${CONFIG_PATH}/hexlicsrv.key" -out "${CONFIG_PATH}/hexlicsrv.csr" -nodes -subj "/CN=${LICENSE_HOST}" >/dev/null 2>&1 || die "CSR failed"
 openssl x509 -req -in "${CONFIG_PATH}/hexlicsrv.csr" -CA "${CA_PATH}/CA.pem" -CAkey "${CA_PATH}/CA.key" -CAcreateserial -out "${CONFIG_PATH}/hexlicsrv.crt" -days 365 -sha512 -extfile <(cat <<-EOF
   [req]
@@ -268,6 +350,7 @@ chown_if_user hexlicsrv \
 
 chmod 640 "$CONFIG_FILE" "${CONFIG_PATH}/hexlicsrv.crt" "${CONFIG_PATH}/hexlicsrv.key" "${INSTALL_PATH}/license_server.hexlic"
 
+log "Starting license_server on :${LICENSE_PORT}"
 exec "${INSTALL_PATH}/license_server" \
   -f "$CONFIG_FILE" \
   -p "$LICENSE_PORT" \
