@@ -11,21 +11,43 @@ services:
       LICENSE_HOST: reversing.example.com
       LICENSE_PORT: "65434"
 
-      # === Release sync (GitHub Releases) ===
-      # Enable sync with a GitHub Release
-      # RELEASE_SYNC_ENABLED: "true"
-      # Repository owner/name
-      # GH_OWNER: RenardDev
-      # GH_REPO: IDATeams
-      # Release tag and display name
+      # === Sync (Unified) ===
+      # Включить синхронизацию и выбрать метод: commits | releases
+      # SYNC_ENABLED: "true"
+      # SYNC_METHOD: "releases"
+
+      # Общие настройки для обоих методов
+      # URL репозитория (HTTPS или SSH). Примеры:
+      #   https://github.com/RenardDev/IDATeams.git
+      #   git@github.com:RenardDev/IDATeams.git
+      # GH_REMOTE: https://github.com/RenardDev/IDATeams.git
+      # Идентификатор хоста (попадает в manifest.json)
+      # SYNC_HOST_ID: hexlicsrv
+      # Размер чанка при разбиении архива (МБ)
+      # SYNC_CHUNK_SIZE_MB: "49"
+      # Токен (PAT) — обязателен для записи и приватных репо/релизов.
+      # Для HTTPS-коммитов используется как x-access-token,
+      # для Releases — как Bearer.
+      # SYNC_AUTH_TOKEN: github_pat_***
+
+      # --- Commits mode (если SYNC_METHOD=commits) ---
+      # GH_BRANCH: main
+      # GH_COMMIT_NAME: HexLicSrv CI
+      # GH_COMMIT_EMAIL: hexlicsrv@example.com
+      # Для SSH:
+      # GH_SSH_PRIVATE_KEY: |-
+      #   -----BEGIN OPENSSH PRIVATE KEY-----
+      #   ...
+      # GH_KNOWN_HOSTS: |-
+      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+
+      # --- Releases mode (если SYNC_METHOD=releases) ---
+      # Метка релиза и отображаемое имя
       # GH_RELEASE_TAG: hexlicsrv-snapshot
       # GH_RELEASE_NAME: HexLicSrv FS Snapshot
-      # Host ID used in manifest.json (optional)
-      # GH_HOST_ID: hexlicsrv
-      # Chunk size (MB) when splitting the archive
-      # GH_CHUNK_SIZE_MB: "49"
-      # Token (PAT) required for upload/private release access
-      # GH_TOKEN: github_pat_***
+      # Для GitHub Enterprise можно переопределить эндпоинты:
+      # GH_API: https://ghe.example.com/api/v3
+      # GH_UPLOAD: https://ghe.example.com/api/uploads
 
     volumes:
       - ./CA:/opt/hexlicsrv/CA

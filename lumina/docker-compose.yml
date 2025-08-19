@@ -49,15 +49,32 @@ services:
       # VAULT_HOST: reversing.example.com
       # VAULT_PORT: "65433"
 
-      # === Release sync (GitHub Releases) ===
-      # RELEASE_SYNC_ENABLED: "true"
-      # GH_OWNER: RenardDev
-      # GH_REPO: IDATeams
+      # === Sync (Unified) ===
+      # Включить синхронизацию и выбрать метод: commits | releases
+      # SYNC_ENABLED: "true"
+      # SYNC_METHOD: "releases"
+
+      # Общие настройки для обоих методов
+      # GH_REMOTE: https://github.com/RenardDev/IDATeams.git
+      # SYNC_HOST_ID: lumina
+      # SYNC_CHUNK_SIZE_MB: "49"
+      # SYNC_AUTH_TOKEN: github_pat_***
+
+      # --- Commits mode (если SYNC_METHOD=commits) ---
+      # GH_BRANCH: main
+      # GH_COMMIT_NAME: Lumina CI
+      # GH_COMMIT_EMAIL: lumina@example.com
+      # GH_SSH_PRIVATE_KEY: |-
+      #   -----BEGIN OPENSSH PRIVATE KEY-----
+      #   ...
+      # GH_KNOWN_HOSTS: |-
+      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+
+      # --- Releases mode (если SYNC_METHOD=releases) ---
       # GH_RELEASE_TAG: lumina-snapshot
       # GH_RELEASE_NAME: Lumina Snapshot
-      # GH_HOST_ID: lumina
-      # GH_CHUNK_SIZE_MB: "49"
-      # GH_TOKEN: github_pat_***
+      # GH_API: https://ghe.example.com/api/v3
+      # GH_UPLOAD: https://ghe.example.com/api/uploads
 
     volumes:
       - ./CA:/opt/lumina/CA
