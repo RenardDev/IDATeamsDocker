@@ -96,15 +96,24 @@ write_manifest() {
   local ts="$1" size="$2" sha="$3"
   local parts=( "${REMOTE_DIR}/data.tar.zst.part_"* )
   local cnt="${#parts[@]}"
-  jq -n --arg host_id "${GH_HOST_ID:-hexvault}" \
-        --arg timestamp_utc "$ts" \
-        --argjson chunk_size_mb "$GH_CHUNK_SIZE_MB" \
-        --argjson archive_size_bytes "$size" \
-        --arg archive_sha256 "$sha" \
-        --argjson chunk_count "$cnt" \
-        '{host_id:$host_id,timestamp_utc:$timestamp_utc,chunk_size_mb:$chunk_size_mb,chunk_count:$chunk_count,archive_size_bytes:$archive_size_bytes,archive_sha256:$archive_sha256}' \
-    > "${REMOTE_DIR}/${MANIFEST_NAME}"
-  log "Wrote manifest ${REMOTE_DIR}/${MANIFEST_NAME} (chunks=$cnt sha=$sha size=$size)"
+
+  jq -n \
+    --arg host_id "${GH_HOST_ID:-hexlicsrv}" \
+    --arg timestamp_utc "$ts" \
+    --arg chunk_size_mb "${GH_CHUNK_SIZE_MB:-0}" \
+    --arg archive_size_bytes "${size:-0}" \
+    --arg archive_sha256 "$sha" \
+    --arg chunk_count "${cnt:-0}" '
+    {
+      host_id: $host_id,
+      timestamp_utc: $timestamp_utc,
+      chunk_size_mb:       (try ($chunk_size_mb      | tonumber) catch 0),
+      chunk_count:         (try ($chunk_count        | tonumber) catch 0),
+      archive_size_bytes:  (try ($archive_size_bytes | tonumber) catch 0),
+      archive_sha256: $archive_sha256
+    }' > "${REMOTE_DIR}/${MANIFEST_NAME}"
+
+  log "Wrote manifest ${REMOTE_DIR}/${MANIFEST_NAME} (chunks=${cnt} sha=${sha} size=${size})"
 }
 
 ################################################################
