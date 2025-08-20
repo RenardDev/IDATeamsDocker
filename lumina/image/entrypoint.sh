@@ -806,7 +806,7 @@ perform_releases_sync() {
     fi
   fi
 
-  if [[ -n "$SYNC_AUTH_TOKEN" && ! db_is_empty ]]; then
+  if [[ -n "$SYNC_AUTH_TOKEN" ]] && ! db_is_empty; then
     log "No manifest at release but token present -> publishing initial dump"
 
     local size sha
@@ -907,11 +907,6 @@ if [[ ! -f "$SCHEMA_LOCK" ]]; then
     log "Schema recreate skipped (restored from snapshot)"
   fi
   touch "$SCHEMA_LOCK"
-fi
-
-if [[ "${SYNC_ENABLED,,}" == "true" && "${SYNC_METHOD,,}" == "releases" && -n "${SYNC_AUTH_TOKEN}" ]]; then
-  log "Second pass: publish dump to release (post-schema)"
-  perform_releases_sync
 fi
 
 log "Generating TLS cert via local CA"
