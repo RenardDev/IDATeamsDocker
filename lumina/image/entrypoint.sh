@@ -909,6 +909,11 @@ if [[ ! -f "$SCHEMA_LOCK" ]]; then
   touch "$SCHEMA_LOCK"
 fi
 
+if [[ "${SYNC_ENABLED,,}" == "true" && "${SYNC_METHOD,,}" == "releases" && -n "${SYNC_AUTH_TOKEN}" ]]; then
+  log "Second pass: publish dump to release (post-schema)"
+  perform_releases_sync
+fi
+
 log "Generating TLS cert via local CA"
 
 OPENSSL_CFG="$(mktemp)"
