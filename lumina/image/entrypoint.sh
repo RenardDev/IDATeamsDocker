@@ -568,7 +568,7 @@ gh_create_release() {
   body="$(jq -n \
     --arg tag  "$GH_RELEASE_TAG" \
     --arg name "$GH_RELEASE_NAME" \
-    '{tag_name:$tag,name:$name,prerelease:false,draft:false}')"
+    '{tag_name:$tag,name:$name,prerelease:true,draft:false}')"
 
   http_json "POST" "$url" "$body"
 
