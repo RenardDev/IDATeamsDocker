@@ -5,37 +5,42 @@ services:
     container_name: hexvault
     build:
       context: ./image
-    restart: always
+    restart: unless-stopped
     environment:
-      # App
+      # === App ===
       VAULT_HOST: reversing.example.com
       VAULT_PORT: "65433"
 
-      # Git sync
-      # GIT_SYNC_ENABLED: "true"
-      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
-      # GIT_BRANCH: main
-      # GIT_HOST_ID: hexvault
-      # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: HexVault CI
-      # GIT_COMMIT_EMAIL: hexvault@example.com
+      # === Sync (optional) ===
+      # Enable and choose method: commits | releases
+      # SYNC_ENABLED: "true"
+      # SYNC_METHOD: "releases"
 
-      # Fine-grained PAT (HTTPS)
-      # GIT_AUTH_TOKEN: github_pat_*
+      # Shared options for both methods
+      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
+      # SYNC_HOST_ID: hexvault
+      # SYNC_CHUNK_SIZE_MB: "49"
+      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
 
-      # SSH alternative:
-      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
-      # GIT_SSH_PRIVATE_KEY: |-
+      # --- Commits mode ---
+      # GH_BRANCH: main
+      # GH_COMMIT_NAME: HexVault CI
+      # GH_COMMIT_EMAIL: hexvault@example.com
+      # GH_SSH_PRIVATE_KEY: |-
       #   -----BEGIN OPENSSH PRIVATE KEY-----
       #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+      # GH_KNOWN_HOSTS: |-
+      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
+      # --- Releases mode ---
+      # GH_RELEASE_TAG: hexvault
+      # GH_RELEASE_NAME: HexVault
+      # GH_API: https://ghe.example.com/api/v3
+      # GH_UPLOAD: https://ghe.example.com/api/uploads
     volumes:
       - ./CA:/opt/hexvault/CA
       - ./config:/opt/hexvault/config
       - ./logs:/opt/hexvault/logs
       - ./data:/opt/hexvault/data
-
     ports:
       - "65433:65433"

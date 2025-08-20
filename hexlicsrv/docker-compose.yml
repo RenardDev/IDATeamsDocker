@@ -5,37 +5,42 @@ services:
     container_name: hexlicsrv
     build:
       context: ./image
-    restart: always
+    restart: unless-stopped
     environment:
-      # App
+      # === App ===
       LICENSE_HOST: reversing.example.com
       LICENSE_PORT: "65434"
 
-      # Git sync
-      # GIT_SYNC_ENABLED: "true"
-      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
-      # GIT_BRANCH: main
-      # GIT_HOST_ID: hexlicsrv
-      # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: HexLicSrv CI
-      # GIT_COMMIT_EMAIL: hexlicsrv@example.com
+      # === Sync (optional) ===
+      # Enable and choose method: commits | releases
+      # SYNC_ENABLED: "true"
+      # SYNC_METHOD: "releases"
 
-      # Fine-grained PAT (HTTPS)
-      # GIT_AUTH_TOKEN: github_pat_*
+      # Shared options for both methods
+      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
+      # SYNC_HOST_ID: hexlicsrv
+      # SYNC_CHUNK_SIZE_MB: "49"
+      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
 
-      # SSH alternative:
-      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
-      # GIT_SSH_PRIVATE_KEY: |-
+      # --- Commits mode ---
+      # GH_BRANCH: main
+      # GH_COMMIT_NAME: HexLicSrv CI
+      # GH_COMMIT_EMAIL: hexlicsrv@example.com
+      # GH_SSH_PRIVATE_KEY: |-
       #   -----BEGIN OPENSSH PRIVATE KEY-----
       #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+      # GH_KNOWN_HOSTS: |-
+      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
+      # --- Releases mode ---
+      # GH_RELEASE_TAG: hexlicsrv
+      # GH_RELEASE_NAME: HexLicSrv
+      # GH_API: https://ghe.example.com/api/v3
+      # GH_UPLOAD: https://ghe.example.com/api/uploads
     volumes:
       - ./CA:/opt/hexlicsrv/CA
       - ./config:/opt/hexlicsrv/config
       - ./logs:/opt/hexlicsrv/logs
       - ./data:/opt/hexlicsrv/data
-
     ports:
       - "65434:65434"

@@ -1,74 +1,74 @@
 version: "3.9"
 
 services:
-  db:
-    container_name: db
+  mysql:
     image: mysql:8.0.40
-    restart: always
+    container_name: mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: lumina
-      MYSQL_DATABASE: lumina
-      MYSQL_USER: lumina
-      MYSQL_PASSWORD: lumina
+      MYSQL_DATABASE: "lumina"
+      MYSQL_USER: "lumina"
+      MYSQL_PASSWORD: "lumina"
+      MYSQL_ROOT_PASSWORD: "rootpass"
+    command: ["--default-authentication-plugin=mysql_native_password"]
     volumes:
       - ./db_data:/var/lib/mysql
-      - ./my.cnf:/etc/mysql/my.cnf:ro
-    ports:
-      - "3306:3306"
-
-  phpmyadmin:
-    container_name: phpmyadmin
-    depends_on: [ db ]
-    image: phpmyadmin/phpmyadmin:latest
-    restart: always
-    environment:
-      PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: lumina
-    ports:
-      - "8080:80"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   lumina:
     container_name: lumina
-    depends_on: [ db ]
     build:
       context: ./image
-    restart: always
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
-      # DB for app & backup
-      MYSQL_HOST: db
-      MYSQL_PORT: "3306"
-      MYSQL_DATABASE: lumina
-      MYSQL_USER: lumina
-      MYSQL_PASSWORD: lumina
-
-      # App
+      # === App ===
       LUMINA_HOST: reversing.example.com
       LUMINA_PORT: "443"
 
-      # Optional
+      # === Database (must match the mysql service above) ===
+      MYSQL_HOST: "mysql"
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: "lumina"
+      MYSQL_USER: "lumina"
+      MYSQL_PASSWORD: "lumina"
+
+      # Optional: if Lumina should build the "vault" schema flavor
       VAULT_HOST: reversing.example.com
       VAULT_PORT: "65433"
 
-      # Git sync
-      # GIT_SYNC_ENABLED: "true"
-      # GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git
-      # GIT_BRANCH: main
-      # GIT_HOST_ID: lumina
-      # GIT_CHUNK_SIZE_MB: "49"
-      # GIT_COMMIT_NAME: Lumina CI
-      # GIT_COMMIT_EMAIL: lumina@example.com
+      # === Sync (optional) ===
+      # Enable and choose method: commits | releases
+      # SYNC_ENABLED: "true"
+      # SYNC_METHOD: "releases"
 
-      # Fine-grained PAT (HTTPS)
-      # GIT_AUTH_TOKEN: github_pat_*
+      # Shared options for both methods
+      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
+      # SYNC_HOST_ID: lumina
+      # SYNC_CHUNK_SIZE_MB: "49"
+      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
 
-      # SSH alternative:
-      # GIT_REMOTE: git@github.com:<USERNAME>/<REPO>.git
-      # GIT_SSH_PRIVATE_KEY: |-
+      # --- Commits mode ---
+      # GH_BRANCH: main
+      # GH_COMMIT_NAME: Lumina CI
+      # GH_COMMIT_EMAIL: lumina@example.com
+      # GH_SSH_PRIVATE_KEY: |-
       #   -----BEGIN OPENSSH PRIVATE KEY-----
       #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+      # GH_KNOWN_HOSTS: |-
+      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
+      # --- Releases mode ---
+      # GH_RELEASE_TAG: lumina
+      # GH_RELEASE_NAME: Lumina
+      # GH_API: https://ghe.example.com/api/v3
+      # GH_UPLOAD: https://ghe.example.com/api/uploads
     volumes:
       - ./CA:/opt/lumina/CA
       - ./config:/opt/lumina/config

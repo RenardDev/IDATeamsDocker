@@ -3,7 +3,7 @@ FROM debian:12
 EXPOSE 65433
 
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y python3 git openssh-client zstd jq tar ca-certificates && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y curl python3 git openssh-client zstd jq tar ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
