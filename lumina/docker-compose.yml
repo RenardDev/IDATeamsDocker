@@ -1,86 +1,78 @@
 version: "3.9"
 
 services:
-  db:
-    container_name: db
-    image: mysql:8.0.40
-    restart: always
+  mysql:
+    image: mysql:8.0
+    container_name: lumina-mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: lumina
-      MYSQL_DATABASE: lumina
-      MYSQL_USER: lumina
-      MYSQL_PASSWORD: lumina
+      MYSQL_DATABASE: "lumina"
+      MYSQL_USER: "lumina"
+      MYSQL_PASSWORD: "lumina"
+      MYSQL_ROOT_PASSWORD: "rootpass"
+    command: ["--default-authentication-plugin=mysql_native_password"]
     volumes:
-      - ./db_data:/var/lib/mysql
-      - ./my.cnf:/etc/mysql/my.cnf:ro
-    ports:
-      - "3306:3306"
-
-  phpmyadmin:
-    container_name: phpmyadmin
-    depends_on: [ db ]
-    image: phpmyadmin/phpmyadmin:latest
-    restart: always
-    environment:
-      PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: lumina
-    ports:
-      - "8080:80"
+      - ./lumina/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   lumina:
     container_name: lumina
-    depends_on: [ db ]
     build:
       context: ./image
-    restart: always
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
-      # === DB for app & snapshot ===
-      MYSQL_HOST: db
-      MYSQL_PORT: "3306"
-      MYSQL_DATABASE: lumina
-      MYSQL_USER: lumina
-      MYSQL_PASSWORD: lumina
-
       # === App ===
       LUMINA_HOST: reversing.example.com
       LUMINA_PORT: "443"
 
-      # === Optional: link to Vault (affects schema type) ===
-      # VAULT_HOST: reversing.example.com
-      # VAULT_PORT: "65433"
+      # === Database (must match the mysql service above) ===
+      MYSQL_HOST: "mysql"
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: "lumina"
+      MYSQL_USER: "lumina"
+      MYSQL_PASSWORD: "lumina"
 
-      # === Sync (Unified) ===
-      # Включить синхронизацию и выбрать метод: commits | releases
+      # Optional: if Lumina should build the "vault" schema flavor
+      VAULT_HOST: reversing.example.com
+      VAULT_PORT: "65433"
+
+      # === Sync (optional) ===
+      # Enable and choose method: commits | releases
       # SYNC_ENABLED: "true"
       # SYNC_METHOD: "releases"
 
-      # Общие настройки для обоих методов
-      # GH_REMOTE: https://github.com/RenardDev/IDATeams.git
-      # SYNC_HOST_ID: lumina
+      # Shared options for both methods
+      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
+      # SYNC_HOST_ID: hexlicsrv
       # SYNC_CHUNK_SIZE_MB: "49"
-      # SYNC_AUTH_TOKEN: github_pat_***
+      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
 
-      # --- Commits mode (если SYNC_METHOD=commits) ---
+      # --- Commits mode ---
       # GH_BRANCH: main
-      # GH_COMMIT_NAME: Lumina CI
-      # GH_COMMIT_EMAIL: lumina@example.com
+      # GH_COMMIT_NAME: HexLicSrv CI
+      # GH_COMMIT_EMAIL: hexlicsrv@example.com
       # GH_SSH_PRIVATE_KEY: |-
       #   -----BEGIN OPENSSH PRIVATE KEY-----
       #   ...
       # GH_KNOWN_HOSTS: |-
       #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
-      # --- Releases mode (если SYNC_METHOD=releases) ---
-      # GH_RELEASE_TAG: lumina-snapshot
-      # GH_RELEASE_NAME: Lumina Snapshot
+      # --- Releases mode ---
+      # GH_RELEASE_TAG: hexlicsrv
+      # GH_RELEASE_NAME: HexLicSrv
       # GH_API: https://ghe.example.com/api/v3
       # GH_UPLOAD: https://ghe.example.com/api/uploads
-
     volumes:
       - ./CA:/opt/lumina/CA
       - ./config:/opt/lumina/config
       - ./logs:/opt/lumina/logs
       - ./data:/opt/lumina/data
-
     ports:
       - "443:443"

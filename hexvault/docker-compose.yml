@@ -4,55 +4,43 @@ services:
   hexvault:
     container_name: hexvault
     build:
-      context: ./image
-    restart: always
+      context: ./hexvault
+    restart: unless-stopped
     environment:
       # === App ===
       VAULT_HOST: reversing.example.com
       VAULT_PORT: "65433"
 
-      # === Sync (Unified) ===
-      # Включить синхронизацию и выбрать метод: commits | releases
+      # === Sync (optional) ===
+      # Enable and choose method: commits | releases
       # SYNC_ENABLED: "true"
       # SYNC_METHOD: "releases"
 
-      # Общие настройки для обоих методов
-      # URL репозитория (HTTPS или SSH). Примеры:
-      #   https://github.com/RenardDev/IDATeams.git
-      #   git@github.com:RenardDev/IDATeams.git
-      # GH_REMOTE: https://github.com/RenardDev/IDATeams.git
-      # Идентификатор хоста для manifest.json
-      # SYNC_HOST_ID: hexvault
-      # Размер чанка при разбиении архива (МБ)
+      # Shared options for both methods
+      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
+      # SYNC_HOST_ID: hexlicsrv
       # SYNC_CHUNK_SIZE_MB: "49"
-      # PAT — обязателен для записи и приватных репо/релизов:
-      #   - commits(HTTPS): как x-access-token
-      #   - releases: как Bearer
-      # SYNC_AUTH_TOKEN: github_pat_***
+      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
 
-      # --- Commits mode (если SYNC_METHOD=commits) ---
+      # --- Commits mode ---
       # GH_BRANCH: main
-      # GH_COMMIT_NAME: HexVault CI
-      # GH_COMMIT_EMAIL: hexvault@example.com
-      # Для SSH:
+      # GH_COMMIT_NAME: HexLicSrv CI
+      # GH_COMMIT_EMAIL: hexlicsrv@example.com
       # GH_SSH_PRIVATE_KEY: |-
       #   -----BEGIN OPENSSH PRIVATE KEY-----
       #   ...
       # GH_KNOWN_HOSTS: |-
       #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
-      # --- Releases mode (если SYNC_METHOD=releases) ---
-      # GH_RELEASE_TAG: hexvault-snapshot
-      # GH_RELEASE_NAME: HexVault FS Snapshot
-      # Для GitHub Enterprise можно переопределить эндпоинты:
+      # --- Releases mode ---
+      # GH_RELEASE_TAG: hexlicsrv
+      # GH_RELEASE_NAME: HexLicSrv
       # GH_API: https://ghe.example.com/api/v3
       # GH_UPLOAD: https://ghe.example.com/api/uploads
-
     volumes:
       - ./CA:/opt/hexvault/CA
       - ./config:/opt/hexvault/config
       - ./logs:/opt/hexvault/logs
       - ./data:/opt/hexvault/data
-
     ports:
       - "65433:65433"

@@ -1,189 +1,221 @@
 # IDATeamsDocker
-Docker configuration (and only docker configuration) files for hosting self-hosted Hexvault, Lumina and Hexlicsrv. The installation files should be in `./image` folders.
+
+Docker configuration for hosting **HexVault**, **Lumina**, and **HexLicSrv**.  
+Installer files go into each service’s `./<service>/image` folder.
 
 Supported version:
-1. [IDA 9.0.240925 September 30, 2024](https://docs.hex-rays.com/release-notes/9_0)
+
+- [IDA 9.0.240925 - September 30, 2024](https://docs.hex-rays.com/release-notes/9_0)
 
 ---
 
-## CA (NOTE)
-Before you start doing anything, you need to generate your own CA certificate. This can be done like this:
+## Repository layout
+
+```
+.
+├─ docker-compose.yml              # runs all services (hexlicsrv, hexvault, lumina + mysql)
+├─ hexlicsrv/
+│  ├─ image/                       # put hexlicsrv installer here (e.g., hexlicsrv90_x64linux.run)
+│  ├─ CA/                          # CA.pem + CA.key
+│  ├─ config/                      # persistent config (mounted)
+│  ├─ data/                        # persistent data (mounted)
+│  └─ logs/                        # persistent logs (mounted)
+├─ hexvault/
+│  ├─ image/                       # put hexvault installer here (e.g., hexvault90_x64linux.run)
+│  ├─ CA/  config/  data/  logs/
+└─ lumina/
+   ├─ image/                       # put lumina installer here (e.g., lumina90_x64linux.run)
+   ├─ CA/  config/  data/  logs/
+   └─ mysql/                       # MySQL persistent volume
+```
+
+---
+
+## Prerequisites
+
+- Linux host with Docker and Docker Compose
+- Your own internal Certificate Authority (CA) pair: `CA.pem` (cert) and `CA.key` (private key)
+- For **Lumina**: MySQL 8 (provided by the included `mysql` service)
+
+---
+
+## Generate your CA (required)
+
+Create a CA once and place it **into every service’s `CA/` folder**:
+
 ```bash
 openssl req -x509 \
     -newkey rsa:4096 -sha512 -keyout CA.key -out CA.pem -days 3650 -nodes \
     -subj "/C=BE/L=Liège/O=Hex-Rays SA./CN=Hex-Rays SA. Root CA"
 ```
-Now you have two files (the key and the certificate itself), you need to place these two files in the CA folders (`./CA`). Also you need to replace the CA in IDA itself, which is done in another step below.
+
+> The containers refuse to start if `CA/CA.pem` or `CA/CA.key` is missing.
 
 ---
 
-## IDA preparing
-1. Create a CA folder in the root (`C:\Program Files\IDA Professional 9.0\CA`)
-2. Copy `CA.key` and `CA.pem` to the previously created folder
-3. Copy the Python script (`license_patch.py`) to the root
-4. Run script as administrator (`python3 license_patch.py ida-pro`)
-5. Enjoy
+## Prepare your IDA client
+
+1. Create `C:\Program Files\IDA Professional 9.0\CA`
+2. Copy your `CA.key` and `CA.pem` into that folder
+3. Copy `license_patch.py` into the IDA install root
+4. Run as Administrator:
+   ```bash
+   python3 license_patch.py ida-pro
+   ```
+5. Start IDA
 
 ---
 
-## Hexvault hosting
-1. `cd ./hexvault`
-2. Copy `hexvault90_x64linux.run` into `./image`
-3. Copy `CA.key` and `CA.pem` to the CA folder (`./CA`)
-4. Edit `docker-compose.yml`. (You need to edit `VAULT_HOST` for TLS)
-5. `sudo docker-compose up -d --build`
-6. Enjoy
+## Running with Docker Compose (recommended)
 
-> **Optional**: see the **GitHub Sync** section below to enable automatic backup/restore of `./data` to a Git repository.
+The provided top-level `docker-compose.yml` brings up all services:
+
+- **hexlicsrv** --> port **65434**
+- **hexvault** --> port **65433**
+- **mysql** for **lumina**
+- **lumina** --> port **443**
+
+### 1) Put installers into image folders
+
+- `hexlicsrv/image/hexlicsrv90_x64linux.run`
+- `hexvault/image/hexvault90_x64linux.run`
+- `lumina/image/lumina90_x64linux.run`
+
+### 2) Put CA into each service
+
+Copy `CA.key` and `CA.pem` into:
+
+- `hexlicsrv/CA/`
+- `hexvault/CA/`
+- `lumina/CA/`
+
+### 3) Adjust hostnames (TLS SAN)
+
+Edit environment in `docker-compose.yml`:
+
+- `LICENSE_HOST` for **hexlicsrv**
+- `VAULT_HOST` for **hexvault**
+- `LUMINA_HOST` for **lumina**
+
+These become the **CN/SAN** in the auto-issued service certificates.
+
+### 4) Bring everything up
+
+```bash
+docker compose up -d --build
+```
+
+> The entrypoints run `license_patch.py` inside each container automatically.
 
 ---
 
-## Lumina hosting
-1. `cd ./lumina`
-2. Copy `lumina90_x64linux.run` into `./image`
-3. Copy `CA.key` and `CA.pem` to the CA folder (`./CA`)
-4. Edit `docker-compose.yml`. (You need to edit `LUMINA_HOST` for TLS)
-5. `sudo docker-compose up -d --build`
-6. Enjoy
+## Service-specific notes
 
-> **Optional**: see the **GitHub Sync** section below to enable automatic backup/restore of `./data` to a Git repository.
+### HexLicSrv
+- Mounts: `./hexlicsrv/{CA,config,data,logs}` --> `/opt/hexlicsrv/...`
+- Config file auto-generated at first start: `config/hexlicsrv.conf`
 
----
+### HexVault
+- Mounts: `./hexvault/{CA,config,data,logs}` --> `/opt/hexvault/...`
+- Config file auto-generated at first start: `config/hexvault.conf`
 
-## Hexlicsrv hosting
-1. `cd ./hexlicsrv`
-2. Copy `hexlicsrv90_x64linux.run` into `./image`
-3. Copy `CA.key` and `CA.pem` to the CA folder (`./CA`)
-4. Edit `docker-compose.yml`. (You need to edit `LICENSE_HOST` for TLS)
-5. `sudo docker-compose up -d --build`
-6. Enjoy
-
-> **Optional**: see the **GitHub Sync** section below to enable automatic backup/restore of `./data` to a Git repository.
+### Lumina
+- Depends on the `mysql` service (health-checked)
+- DB env must match `mysql` service:
+  - `MYSQL_HOST=mysql`, `MYSQL_PORT=3306`, `MYSQL_DATABASE=lumina`, `MYSQL_USER=lumina`, `MYSQL_PASSWORD=lumina`
+- Mounts: `./lumina/{CA,config,data,logs}` --> `/opt/lumina/...`
+- Config file auto-generated at first start: `config/lumina.conf`
 
 ---
 
-## GitHub Sync (optional, recommended)
+## Unified GitHub Sync (optional but recommended)
 
-The containers can optionally back up and restore their **data directory** from a Git repository.  
-This is especially useful to bootstrap a new node (restore when empty) and to keep an off-site history of data snapshots.
+All three services can **backup/restore** their state to GitHub in one of two modes:
 
-### What it does
-- On container start:
-  - If the local `data/` is **empty** and the remote repo contains a snapshot, the container **restores** from Git.
-  - If the local `data/` is **not empty**, the container **packages** it, **splits** into ≤ *N* MB parts, and **pushes** to Git **only if changed** (by SHA-256).
-- Packaging format: `tar` → `zstd -19` → `data.tar.zst` → `split` into `data.tar.zst.part_000`, `..._001`, etc.
-- Metadata is saved in `manifest.json` with fields like `archive_sha256`, `chunk_count`, `timestamp_utc`, etc.
-- Remote layout: `backups/<GIT_HOST_ID>/data.tar.zst.part_***` + `manifest.json`.
+- **commits**: push chunks + `manifest.json` into a branch under `backups/<SYNC_HOST_ID>/`
+- **releases**: upload chunks + `manifest.json` as **release assets** of a tag
 
-> **GitHub’s file size limit** is 50 MB. By default we use `GIT_CHUNK_SIZE_MB=49`.
+### How it works (on container start)
 
-### Enable it (Hexvault example)
-Uncomment and set the environment variables in `./hexvault/docker-compose.yml`:
+- If local data is **empty** and a remote snapshot exists --> **restore**
+- Else package local state and **push only if changed** (SHA-256 compare)
+
+### Packaging
+
+- **HexLicSrv / HexVault:** `tar` --> `zstd -19` --> `data.tar.zst` --> split --> `data.tar.zst.part_000`, `...001`, ...
+- **Lumina:** `mysqldump` --> `zstd -19` --> `dump.sql.zst` --> split --> `dump.sql.zst.part_000`, ...
+
+`manifest.json` stores (among others): `archive_sha256`, `chunk_count`, `chunk_size_mb`, `timestamp_utc`.
+
+> Keep `SYNC_CHUNK_SIZE_MB ≤ 49` for GitHub’s 50 MB file limit in repos (default is `49`).
+
+### Enable sync
+
+In `docker-compose.yml`, per service set:
 
 ```yaml
-services:
-  hexvault:
-    environment:
-      # App
-      VAULT_HOST: reversing.example.com
-      VAULT_PORT: "65433"
+environment:
+  SYNC_ENABLED: "true"                 # enable sync
+  SYNC_METHOD: "releases"              # or "commits"
+  GH_REMOTE: https://github.com/yourorg/yourrepo.git  # or SSH: git@github.com:yourorg/yourrepo.git
+  SYNC_HOST_ID: "hexvault"             # logical node id, used in path under commits mode
+  SYNC_CHUNK_SIZE_MB: "49"
 
-      # --- Git sync ---
-      GIT_SYNC_ENABLED: "true"
-      GIT_REMOTE: https://github.com/<USERNAME>/<REPO>.git # or SSH form: git@github.com:<USERNAME>/<REPO>.git
-      GIT_BRANCH: main
-      GIT_HOST_ID: hexvault # logical node id for backups/<GIT_HOST_ID>
-      GIT_CHUNK_SIZE_MB: "49"
+  # For write access / private repos or releases:
+  # SYNC_AUTH_TOKEN: github_pat_token_here
 
-      # Commit identity
-      GIT_COMMIT_NAME: HexVault CI
-      GIT_COMMIT_EMAIL: hexvault@example.com
+  # Commits mode (optional identity)
+  # GH_BRANCH: main
+  # GH_COMMIT_NAME: HexVault CI
+  # GH_COMMIT_EMAIL: hexvault@example.com
+  # GH_SSH_PRIVATE_KEY: |-
+  #   -----BEGIN OPENSSH PRIVATE KEY-----
+  #   ...
+  # GH_KNOWN_HOSTS: |-
+  #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
-      # (Option A) HTTPS with fine-grained Personal Access Token (PAT)
-      # GIT_AUTH_TOKEN: github_pat_...
-
-      # (Option B) SSH
-      # GIT_SSH_PRIVATE_KEY: |-
-      #   -----BEGIN OPENSSH PRIVATE KEY-----
-      #   ...
-      #   -----END OPENSSH PRIVATE KEY-----
-      # GIT_KNOWN_HOSTS: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
+  # Releases mode
+  # GH_RELEASE_TAG: hexvault-snapshot
+  # GH_RELEASE_NAME: HexVault FS Snapshot
+  # GH_API: https://ghe.example.com/api/v3         # for GHE
+  # GH_UPLOAD: https://ghe.example.com/api/uploads # for GHE
 ```
 
-Then:
-```bash
-cd ./hexvault
-sudo docker-compose up -d --build
-```
-
-> **Security tips**
-> - Do **not** commit your PAT or private key to the repo. Prefer Docker secrets or environment injection in CI/ops.
-> - For SSH, either provide `GIT_KNOWN_HOSTS` (strict) or the entrypoint will use `StrictHostKeyChecking=no`.
-
-### PAT vs SSH quick start
-
-**HTTPS + PAT**
-1. Create a private repo (recommended).
-2. Create a fine-grained PAT with **Contents: Read and Write** for that repo.
-3. Set:
-   - `GIT_REMOTE=https://github.com/<USER>/<REPO>.git`
-   - `GIT_AUTH_TOKEN=github_pat_...`
-4. Bring the container up.
-
-**SSH**
-1. Generate a deploy key (`ssh-keygen -t ed25519 -C "hexvault-ci"`), add the **public** key as a deploy key with write access.
-2. Set:
-   - `GIT_REMOTE=git@github.com:<USER>/<REPO>.git`
-   - `GIT_SSH_PRIVATE_KEY=<your private key content>`
-   - (Optionally) `GIT_KNOWN_HOSTS="github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."`
-3. Bring the container up.
-
-### How to verify it works
-- On first start with **empty** `./hexvault/data` and a **remote snapshot** present:
-  - The container will **assemble** parts from `backups/<GIT_HOST_ID>/` and extract into `/opt/hexvault/data`.
-- With **non-empty** local data:
-  - The container will create `data.tar.zst`, split into `*.part_***`, compute `SHA-256`, write `manifest.json`, commit and push **only if** the hash differs from the remote manifest.
-
-You can confirm by checking your Git repo:
-```
-backups/
-  hexvault/                     # GIT_HOST_ID
-    data.tar.zst.part_000
-    data.tar.zst.part_001
-    ...
-    manifest.json
-```
-
-### Forcing behaviors
-- **Force a fresh push**: delete `backups/<GIT_HOST_ID>/` in the repo (or bump `GIT_HOST_ID`), then restart the container.
-- **Force restore**: ensure the local `./hexvault/data` is empty and that the remote snapshot exists.
-- **Change chunk size**: tweak `GIT_CHUNK_SIZE_MB` (stay ≤ 49 for GitHub).
+> **PAT vs SSH**: For HTTPS URLs set `SYNC_AUTH_TOKEN` (Bearer for releases, x-access-token for commits). For SSH, provide `GH_SSH_PRIVATE_KEY` and optionally `GH_KNOWN_HOSTS`.
 
 ---
 
-## NOTE on schema lock files
-The `*_schema.lock` flag file is an indicator to the container when it is time to run a schema recreate using `--recreate-schema`. As long as this file exists, the container will not run a schema recreate.
+## Schema lock files
+
+A `*_schema.lock` file prevents schema recreation on subsequent boots.  
+Delete the lock if you intentionally want the service to run `--recreate-schema` again.
 
 ---
 
-## Troubleshooting Git FS Sync
+## Troubleshooting
 
-- **Missing tool: <name>**  
-  The entrypoint requires: `git`, `ssh-keyscan`, `tar`, `zstd`, `jq`, `sha256sum`, `split`, `openssl`. Install them in the image.
+- **Missing tools**  
+  Images must include: `git`, `ssh-keyscan`, `curl`, `tar`, `zstd`, `jq`, `sha256sum`, `split`, `openssl`, and for Lumina also `mysql`, `mysqldump`, `nc`.
 
-- **Auth failed / permission denied**  
-  Check `GIT_REMOTE`, token/SSH key validity, and that the repo exists and is writable. For SSH, verify `GIT_KNOWN_HOSTS` or disable strict checking (less secure).
+- **Auth / permissions fail**  
+  Verify `GH_REMOTE`, token/SSH key validity, and repo access. For SSH, either supply `GH_KNOWN_HOSTS` or the entrypoint will disable strict host checking (less secure).
 
 - **Checksum mismatch on restore**  
-  The assembled archive’s `sha256` doesn’t match `manifest.json`. Re-push a clean snapshot: remove remote parts + manifest, restart to re-create from local data.
+  Means the assembled archive’s SHA-256 differs from `manifest.json`.  
+  Fix by republishing a clean snapshot (run with `SYNC_AUTH_TOKEN` so the container uploads a fresh manifest and parts), or remove release/branch assets and let the container recreate them.
 
 - **No changes to commit**  
-  This is normal if `archive_sha256` matches the remote; the entrypoint skips pushing identical snapshots.
-
-- **Hitting GitHub 50 MB limit**  
-  Keep `GIT_CHUNK_SIZE_MB` ≤ 49 (default). The packer always splits; do not commit `data.tar.zst` directly to the repo root.
+  Normal when the computed SHA-256 equals the remote manifest; nothing is pushed.
 
 ---
 
-## `shell.reg`
-This file adds support for opening IDA with the right mouse button in Windows.
+## Windows `shell.reg`
+
+Adds a context-menu entry to open files with IDA on Windows.
+
+--- 
+
+## Security notes
+
+- Never commit tokens or private keys. Use Docker secrets, env injection in CI, or a secrets manager.
+- Your CA private key is sensitive; restrict filesystem permissions and repo access accordingly.
