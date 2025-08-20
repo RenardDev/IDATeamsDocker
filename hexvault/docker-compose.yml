@@ -4,7 +4,7 @@ services:
   hexvault:
     container_name: hexvault
     build:
-      context: ./hexvault
+      context: ./image
     restart: unless-stopped
     environment:
       # === App ===
