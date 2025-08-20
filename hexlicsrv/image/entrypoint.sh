@@ -81,7 +81,7 @@ pack_payload() {
   rm -f "$ARCHIVE_PATH"
   mkdir -p "$DATA_PATH"
 
-  log "Packing FS -> $ARCHIVE_PATH"
+  log "Packing FS -> $ARCHIVE_PATH" >&2
 
   tar -C "$DATA_PATH" -cf - . \
     | zstd -q -T0 -19 -o "$ARCHIVE_PATH"

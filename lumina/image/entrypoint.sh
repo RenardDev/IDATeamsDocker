@@ -121,7 +121,7 @@ db_is_empty() {
 pack_payload() {
   rm -f "$DUMP_PATH" "$ARCHIVE_PATH"
 
-  log "Dumping DB '${MYSQL_DATABASE}' -> $ARCHIVE_PATH"
+  log "Dumping DB '${MYSQL_DATABASE}' -> $ARCHIVE_PATH" >&2
 
   mysqldump \
     --protocol=TCP \
