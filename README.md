@@ -175,8 +175,8 @@ environment:
   #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
   # Releases mode
-  # GH_RELEASE_TAG: hexvault-snapshot
-  # GH_RELEASE_NAME: HexVault FS Snapshot
+  # GH_RELEASE_TAG: hexvault
+  # GH_RELEASE_NAME: HexVault
   # GH_API: https://ghe.example.com/api/v3         # for GHE
   # GH_UPLOAD: https://ghe.example.com/api/uploads # for GHE
 ```
