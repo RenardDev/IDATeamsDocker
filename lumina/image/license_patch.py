@@ -3,6 +3,11 @@
 
 import platform
 import sys
+import os
+import sys
+import re
+import subprocess
+import uuid
 import hashlib
 import json
 
@@ -44,6 +49,86 @@ if CURRENT_DIRECTORY.joinpath('CA').joinpath('CA.pem').exists():
         NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS += b'\x00' * (len(ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) - len(NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS))
 
         HAVE_NEW_ROOT_CA_CERTIFICATE = True
+
+# Helpful functions
+
+def get_mac_addresses():
+    macs = set()
+    mac_token = re.compile(r'([0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5})')
+    def _norm(mac: str):
+        if not mac:
+            return None
+        mac = mac.strip().replace('-', ':').lower()
+        if re.fullmatch(r'[0-9a-f]{2}(?::[0-9a-f]{2}){5}', mac):
+            mac = mac.upper()
+            return mac
+        return None
+
+    # 1) psutil (best API) — optional
+    try:
+        import psutil # type: ignore
+        for addrs in psutil.net_if_addrs().values():
+            for a in addrs:
+                cand = getattr(a, 'address', '') or ''
+                n = _norm(cand)
+                if n:
+                    macs.add(n)
+    except Exception:
+        pass
+
+    # 2) Linux: read /sys (no external commands)
+    if sys.platform.startswith('linux'):
+        try:
+            import glob
+            for p in glob.glob('/sys/class/net/*/address'):
+                try:
+                    with open(p, 'r', encoding='utf-8', errors='ignore') as f:
+                        n = _norm(f.read())
+                        if n:
+                            macs.add(n)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    # 3) macOS/BSD: parse ifconfig output
+    if sys.platform.startswith('darwin') or 'bsd' in sys.platform:
+        try:
+            out = subprocess.check_output(['ifconfig'], text=True, errors='ignore')
+            for tok in mac_token.findall(out):
+                n = _norm(tok)
+                if n:
+                    macs.add(n)
+        except Exception:
+            pass
+
+    # 4) Windows: parse getmac/ipconfig output
+    if os.name == 'nt':
+        for cmd in (['getmac', '/NH', '/FO', 'CSV'],
+                    ['getmac'],
+                    ['ipconfig', '/all']):
+            try:
+                out = subprocess.check_output(cmd, text=True, errors='ignore')
+                for tok in mac_token.findall(out):
+                    n = _norm(tok)
+                    if n:
+                        macs.add(n)
+                break
+            except Exception:
+                continue
+
+    # 5) Fallback: uuid.getnode() (single MAC, may be synthetic)
+    try:
+        node = uuid.getnode()
+        if (node >> 40) and (node != 0xFFFFFFFFFFFF):
+            raw = f"{node:012X}"
+            n = _norm(':'.join(raw[i:i+2] for i in range(0, 12, 2)))
+            if n:
+                macs.add(n)
+    except Exception:
+        pass
+
+    return sorted(macs)
 
 # Crypto functions
 
@@ -448,7 +533,6 @@ def main(argv: list) -> int:
         issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date   = '2038-01-18' # '2038-01-19 03:14:07'
         seats      = 32767
-        owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
 
@@ -468,9 +552,10 @@ def main(argv: list) -> int:
 
         # Licenses
 
-        licenses = [
-            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
-        ]
+        licenses = []
+
+        for mac in get_mac_addresses():
+            licenses.append(generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
 
         # Package
 
@@ -505,7 +590,6 @@ def main(argv: list) -> int:
         issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date   = '2038-01-18' # '2038-01-19 03:14:07'
         seats      = 32767
-        owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
 
@@ -525,9 +609,10 @@ def main(argv: list) -> int:
 
         # Licenses
 
-        licenses = [
-            generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
-        ]
+        licenses = []
+
+        for mac in get_mac_addresses():
+            licenses.append(generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
 
         # Package
 
@@ -562,7 +647,6 @@ def main(argv: list) -> int:
         issued_on       = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date        = '2038-01-18' # '2038-01-19 03:14:07'
         seats           = 32767
-        owner_hexlicsrv = '00:00:00:00:00:00'
         owner           = 'RenardDev'
         name            = 'RenardDev'
         email           = 'zeze839@gmail.com'
@@ -609,10 +693,12 @@ def main(argv: list) -> int:
 
         # Licenses
 
-        licenses = [
-            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner_hexlicsrv, add_ons, [], format_id(hexlicsrv_license_id)),
-            generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
-        ]
+        licenses = []
+
+        for mac in get_mac_addresses():
+            licenses.append(generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(hexlicsrv_license_id)))
+
+        licenses.append(generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id)))
 
         # Package
 
