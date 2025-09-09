@@ -6,8 +6,9 @@ import sys
 import os
 import sys
 import re
+import socket
 import subprocess
-import uuid
+import shutil
 import hashlib
 import json
 
@@ -54,79 +55,83 @@ if CURRENT_DIRECTORY.joinpath('CA').joinpath('CA.pem').exists():
 
 def get_mac_addresses():
     macs = set()
-    mac_token = re.compile(r'([0-9A-Fa-f]{2}(?:[:-][0-9A-Fa-f]{2}){5})')
+
     def _norm(mac: str):
         if not mac:
             return None
-        mac = mac.strip().replace('-', ':').lower()
+        mac = mac.strip().lower().replace('-', ':')
         if re.fullmatch(r'[0-9a-f]{2}(?::[0-9a-f]{2}){5}', mac):
             mac = mac.upper()
             return mac
         return None
 
-    # 1) psutil (best API) — optional
-    try:
-        import psutil # type: ignore
-        for addrs in psutil.net_if_addrs().values():
-            for a in addrs:
-                cand = getattr(a, 'address', '') or ''
-                n = _norm(cand)
-                if n:
-                    macs.add(n)
-    except Exception:
-        pass
+    def _add(mac):
+        n = _norm(mac)
+        if n:
+            macs.add(n)
 
-    # 2) Linux: read /sys (no external commands)
+    # --- 1) Linux sysfs: /sys/class/net/*/address ---
     if sys.platform.startswith('linux'):
         try:
-            import glob
-            for p in glob.glob('/sys/class/net/*/address'):
+            for name in os.listdir('/sys/class/net'):
+                if name == 'lo':
+                    continue
+                p = f'/sys/class/net/{name}/address'
                 try:
                     with open(p, 'r', encoding='utf-8', errors='ignore') as f:
-                        n = _norm(f.read())
-                        if n:
-                            macs.add(n)
+                        _add(f.read())
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # --- 2) ioctl(SIOCGIFHWADDR) for each iface ---
+        try:
+            import fcntl, struct
+            SIOCGIFHWADDR = 0x8927
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                names = [n for _, n in socket.if_nameindex()]
+            except Exception:
+                names = []
+            for name in names:
+                if name == 'lo':
+                    continue
+                try:
+                    ifreq = struct.pack('256s', name.encode('utf-8')[:15])
+                    res = fcntl.ioctl(s.fileno(), SIOCGIFHWADDR, ifreq)
+                    mac_bytes = res[18:24]
+                    _add(':'.join(f'{b:02X}' for b in mac_bytes))
                 except Exception:
                     continue
+            s.close()
         except Exception:
             pass
 
-    # 3) macOS/BSD: parse ifconfig output
-    if sys.platform.startswith('darwin') or 'bsd' in sys.platform:
-        try:
-            out = subprocess.check_output(['ifconfig'], text=True, errors='ignore')
-            for tok in mac_token.findall(out):
-                n = _norm(tok)
-                if n:
-                    macs.add(n)
-        except Exception:
-            pass
-
-    # 4) Windows: parse getmac/ipconfig output
-    if os.name == 'nt':
-        for cmd in (['getmac', '/NH', '/FO', 'CSV'],
-                    ['getmac'],
-                    ['ipconfig', '/all']):
+        # --- 3) ip link ---
+        if shutil.which('ip'):
             try:
-                out = subprocess.check_output(cmd, text=True, errors='ignore')
-                for tok in mac_token.findall(out):
-                    n = _norm(tok)
-                    if n:
-                        macs.add(n)
-                break
+                out = subprocess.check_output(['ip', '-o', 'link'], text=True, errors='ignore')
+                for line in out.splitlines():
+                    if 'link/loopback' in line:
+                        continue
+                    m = re.search(r'link/ether\s+([0-9a-f:]{17})', line, re.I)
+                    if m:
+                        _add(m.group(1))
             except Exception:
-                continue
+                pass
 
-    # 5) Fallback: uuid.getnode() (single MAC, may be synthetic)
-    try:
-        node = uuid.getnode()
-        if (node >> 40) and (node != 0xFFFFFFFFFFFF):
-            raw = f"{node:012X}"
-            n = _norm(':'.join(raw[i:i+2] for i in range(0, 12, 2)))
-            if n:
-                macs.add(n)
-    except Exception:
-        pass
+    if not macs:
+        try:
+            import uuid
+            node = uuid.getnode()
+            first_octet = (node >> 40) & 0xFF
+            is_multicast = bool(first_octet & 0x01)
+            if node != 0 and not is_multicast and node != 0xFFFFFFFFFFFF:
+                raw = f'{node:012X}'
+                _add(':'.join(raw[i:i+2] for i in range(0, 12, 2)))
+        except Exception:
+            pass
 
     return sorted(macs)
 
@@ -555,6 +560,7 @@ def main(argv: list) -> int:
         licenses = []
 
         for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
             licenses.append(generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
 
         # Package
@@ -612,6 +618,7 @@ def main(argv: list) -> int:
         licenses = []
 
         for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
             licenses.append(generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
 
         # Package
@@ -696,6 +703,7 @@ def main(argv: list) -> int:
         licenses = []
 
         for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
             licenses.append(generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(hexlicsrv_license_id)))
 
         licenses.append(generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id)))
