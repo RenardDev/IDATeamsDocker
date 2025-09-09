@@ -6,6 +6,8 @@ Installer files go into each service’s `./<service>/image` folder.
 Supported version:
 
 - [IDA 9.0.240925 - September 30, 2024](https://docs.hex-rays.com/release-notes/9_0)
+- [IDA 9.1.250226 - February 28, 2025](https://docs.hex-rays.com/release-notes/9_1)
+- [IDA 9.2.250908 - September 8, 2025](https://docs.hex-rays.com/release-notes/9_2)
 
 ---
 
@@ -15,16 +17,16 @@ Supported version:
 .
 ├─ docker-compose.yml              # runs all services (hexlicsrv, hexvault, lumina + mysql)
 ├─ hexlicsrv/
-│  ├─ image/                       # put hexlicsrv installer here (e.g., hexlicsrv90_x64linux.run)
+│  ├─ image/                       # put hexlicsrv installer here (e.g., hexlicsrv_x64linux.run)
 │  ├─ CA/                          # CA.pem + CA.key
 │  ├─ config/                      # persistent config (mounted)
 │  ├─ data/                        # persistent data (mounted)
 │  └─ logs/                        # persistent logs (mounted)
 ├─ hexvault/
-│  ├─ image/                       # put hexvault installer here (e.g., hexvault90_x64linux.run)
+│  ├─ image/                       # put hexvault installer here (e.g., hexvault_x64linux.run)
 │  ├─ CA/  config/  data/  logs/
 └─ lumina/
-   ├─ image/                       # put lumina installer here (e.g., lumina90_x64linux.run)
+   ├─ image/                       # put lumina installer here (e.g., lumina_x64linux.run)
    ├─ CA/  config/  data/  logs/
    └─ mysql/                       # MySQL persistent volume
 ```
@@ -77,9 +79,9 @@ The provided top-level `docker-compose.yml` brings up all services:
 
 ### 1) Put installers into image folders
 
-- `hexlicsrv/image/hexlicsrv90_x64linux.run`
-- `hexvault/image/hexvault90_x64linux.run`
-- `lumina/image/lumina90_x64linux.run`
+- `hexlicsrv/image/hexlicsrv_x64linux.run`
+- `hexvault/image/hexvault_x64linux.run`
+- `lumina/image/lumina_x64linux.run`
 
 ### 2) Put CA into each service
 
@@ -193,6 +195,22 @@ Delete the lock if you intentionally want the service to run `--recreate-schema`
 ---
 
 ## Troubleshooting
+
+- **World-accessible config (HexLicSrv)**  
+  **Symptom:**  
+  `File "/opt/hexlicsrv/config/hexlicsrv.conf" is world-accessible; exiting`  
+  **Fix:**  
+  ```bash
+  chmod 600 config/hexlicsrv.conf
+  ```
+
+- **World-accessible config (HexVault)**  
+  **Symptom:**  
+  `File "/opt/hexvault/config/hexvault.conf" is world-accessible; exiting`  
+  **Fix:**  
+  ```bash
+  chmod 600 config/hexvault.conf
+  ```
 
 - **Missing tools**  
   Images must include: `git`, `ssh-keyscan`, `curl`, `tar`, `zstd`, `jq`, `sha256sum`, `split`, `openssl`, and for Lumina also `mysql`, `mysqldump`, `nc`.
