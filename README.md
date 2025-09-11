@@ -227,7 +227,7 @@ Delete the lock if you intentionally want the service to run `--recreate-schema`
 
 ---
 
-## Windows `shell.reg`
+## Windows `shell.<IDA version>.reg`
 
 Adds a context-menu entry to open files with IDA on Windows.
 
