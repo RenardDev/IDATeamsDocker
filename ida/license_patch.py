@@ -3,6 +3,12 @@
 
 import platform
 import sys
+import os
+import sys
+import re
+import socket
+import subprocess
+import shutil
 import hashlib
 import json
 
@@ -44,6 +50,90 @@ if CURRENT_DIRECTORY.joinpath('CA').joinpath('CA.pem').exists():
         NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS += b'\x00' * (len(ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) - len(NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS))
 
         HAVE_NEW_ROOT_CA_CERTIFICATE = True
+
+# Helpful functions
+
+def get_mac_addresses():
+    macs = set()
+
+    def _norm(mac: str):
+        if not mac:
+            return None
+        mac = mac.strip().lower().replace('-', ':')
+        if re.fullmatch(r'[0-9a-f]{2}(?::[0-9a-f]{2}){5}', mac):
+            mac = mac.upper()
+            return mac
+        return None
+
+    def _add(mac):
+        n = _norm(mac)
+        if n:
+            macs.add(n)
+
+    # --- 1) Linux sysfs: /sys/class/net/*/address ---
+    if sys.platform.startswith('linux'):
+        try:
+            for name in os.listdir('/sys/class/net'):
+                if name == 'lo':
+                    continue
+                p = f'/sys/class/net/{name}/address'
+                try:
+                    with open(p, 'r', encoding='utf-8', errors='ignore') as f:
+                        _add(f.read())
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # --- 2) ioctl(SIOCGIFHWADDR) for each iface ---
+        try:
+            import fcntl, struct
+            SIOCGIFHWADDR = 0x8927
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                names = [n for _, n in socket.if_nameindex()]
+            except Exception:
+                names = []
+            for name in names:
+                if name == 'lo':
+                    continue
+                try:
+                    ifreq = struct.pack('256s', name.encode('utf-8')[:15])
+                    res = fcntl.ioctl(s.fileno(), SIOCGIFHWADDR, ifreq)
+                    mac_bytes = res[18:24]
+                    _add(':'.join(f'{b:02X}' for b in mac_bytes))
+                except Exception:
+                    continue
+            s.close()
+        except Exception:
+            pass
+
+        # --- 3) ip link ---
+        if shutil.which('ip'):
+            try:
+                out = subprocess.check_output(['ip', '-o', 'link'], text=True, errors='ignore')
+                for line in out.splitlines():
+                    if 'link/loopback' in line:
+                        continue
+                    m = re.search(r'link/ether\s+([0-9a-f:]{17})', line, re.I)
+                    if m:
+                        _add(m.group(1))
+            except Exception:
+                pass
+
+    if not macs:
+        try:
+            import uuid
+            node = uuid.getnode()
+            first_octet = (node >> 40) & 0xFF
+            is_multicast = bool(first_octet & 0x01)
+            if node != 0 and not is_multicast and node != 0xFFFFFFFFFFFF:
+                raw = f'{node:012X}'
+                _add(':'.join(raw[i:i+2] for i in range(0, 12, 2)))
+        except Exception:
+            pass
+
+    return sorted(macs)
 
 # Crypto functions
 
@@ -265,6 +355,7 @@ def main(argv: list) -> int:
                 'hv',
                 'hvui',
                 'lsadmin',
+                'lsadm',
                 'libida.so',
                 'libida32.so',
                 'dbgsrv/linux_server',
@@ -275,6 +366,7 @@ def main(argv: list) -> int:
                 'dbgsrv/mac_server_arme',
                 'dbgsrv/win32_remote32',
                 'dbgsrv/win64_remote.exe',
+                'dbgsrv/win32_remote32.exe',
                 'plugins/armlinux_stub.so',
                 'plugins/arm_mac_stub.so',
                 'plugins/dalvik_user.so',
@@ -295,6 +387,7 @@ def main(argv: list) -> int:
                 'hv.exe',
                 'hvui.exe',
                 'lsadmin.exe',
+                'lsadm.exe',
                 'ida.dll',
                 'ida32.dll',
                 'dbgsrv/linux_server',
@@ -305,6 +398,7 @@ def main(argv: list) -> int:
                 'dbgsrv/mac_server_arme',
                 'dbgsrv/win32_remote32',
                 'dbgsrv/win64_remote.exe',
+                'dbgsrv/win32_remote32.exe',
                 'plugins/armlinux_stub.dll',
                 'plugins/arm_mac_stub.dll',
                 'plugins/dalvik_user.dll',
@@ -325,6 +419,7 @@ def main(argv: list) -> int:
                 'hv',
                 'hvui',
                 'lsadmin',
+                'lsadm',
                 'libida.dylib',
                 'libida32.dylib',
                 'dbgsrv/linux_server',
@@ -335,6 +430,7 @@ def main(argv: list) -> int:
                 'dbgsrv/mac_server_arme',
                 'dbgsrv/win32_remote32',
                 'dbgsrv/win64_remote.exe',
+                'dbgsrv/win32_remote32.exe',
                 'plugins/armlinux_stub.dylib',
                 'plugins/arm_mac_stub.dylib',
                 'plugins/dalvik_user.dylib',
@@ -448,7 +544,6 @@ def main(argv: list) -> int:
         issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date   = '2038-01-18' # '2038-01-19 03:14:07'
         seats      = 32767
-        owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
 
@@ -468,9 +563,11 @@ def main(argv: list) -> int:
 
         # Licenses
 
-        licenses = [
-            generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
-        ]
+        licenses = []
+
+        for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
+            licenses.append(generate_license('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
 
         # Package
 
@@ -505,7 +602,6 @@ def main(argv: list) -> int:
         issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date   = '2038-01-18' # '2038-01-19 03:14:07'
         seats      = 32767
-        owner      = '00:00:00:00:00:00'
         name       = 'RenardDev'
         email      = 'zeze839@gmail.com'
 
@@ -525,9 +621,11 @@ def main(argv: list) -> int:
 
         # Licenses
 
-        licenses = [
-            generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
-        ]
+        licenses = []
+
+        for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
+            licenses.append(generate_license('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
 
         # Package
 
@@ -562,7 +660,6 @@ def main(argv: list) -> int:
         issued_on       = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         end_date        = '2038-01-18' # '2038-01-19 03:14:07'
         seats           = 32767
-        owner_hexlicsrv = '00:00:00:00:00:00'
         owner           = 'RenardDev'
         name            = 'RenardDev'
         email           = 'zeze839@gmail.com'
@@ -609,10 +706,13 @@ def main(argv: list) -> int:
 
         # Licenses
 
-        licenses = [
-            generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner_hexlicsrv, add_ons, [], format_id(hexlicsrv_license_id)),
-            generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
-        ]
+        licenses = []
+
+        for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
+            licenses.append(generate_license('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(hexlicsrv_license_id)))
+
+        licenses.append(generate_license('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id)))
 
         # Package
 
