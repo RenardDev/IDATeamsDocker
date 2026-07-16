@@ -458,6 +458,7 @@ def main(argv: list) -> int:
                 'hvui',
                 'lsadmin',
                 'lsadm',
+                'lc',
                 'libida.so',
                 'libida32.so',
                 'dbgsrv/linux_server',
@@ -479,6 +480,10 @@ def main(argv: list) -> int:
                 'plugins/pin_user.so',
                 'plugins/win32_stub.so',
                 'plugins/xnu_user.so',
+                'plugins/bochs_user.so',
+                'plugins/replay_user.so',
+                'plugins/win32_user.so',
+                'plugins/windbg_user.so',
             ]
 
             for file in files:
@@ -490,6 +495,7 @@ def main(argv: list) -> int:
                 'hvui.exe',
                 'lsadmin.exe',
                 'lsadm.exe',
+                'lc.exe',
                 'ida.dll',
                 'ida32.dll',
                 'dbgsrv/linux_server',
@@ -511,6 +517,10 @@ def main(argv: list) -> int:
                 'plugins/pin_user.dll',
                 'plugins/win32_stub.dll',
                 'plugins/xnu_user.dll',
+                'plugins/bochs_user.dll',
+                'plugins/replay_user.dll',
+                'plugins/win32_user.dll',
+                'plugins/windbg_user.dll',
             ]
 
             for file in files:
@@ -522,6 +532,7 @@ def main(argv: list) -> int:
                 'hvui',
                 'lsadmin',
                 'lsadm',
+                'lc',
                 'libida.dylib',
                 'libida32.dylib',
                 'dbgsrv/linux_server',
@@ -543,6 +554,10 @@ def main(argv: list) -> int:
                 'plugins/pin_user.dylib',
                 'plugins/win32_stub.dylib',
                 'plugins/xnu_user.dylib',
+                'plugins/bochs_user.dylib',
+                'plugins/replay_user.dylib',
+                'plugins/win32_user.dylib',
+                'plugins/windbg_user.dylib',
             ]
 
             for file in files:
@@ -638,6 +653,7 @@ def main(argv: list) -> int:
                 'hvui',
                 'lsadmin',
                 'lsadm',
+                'lc',
                 'libida.so',
                 'libida32.so',
                 'dbgsrv/linux_server',
@@ -659,6 +675,10 @@ def main(argv: list) -> int:
                 'plugins/pin_user.so',
                 'plugins/win32_stub.so',
                 'plugins/xnu_user.so',
+                'plugins/bochs_user.so',
+                'plugins/replay_user.so',
+                'plugins/win32_user.so',
+                'plugins/windbg_user.so',
             ]
 
             for file in files:
@@ -670,6 +690,7 @@ def main(argv: list) -> int:
                 'hvui.exe',
                 'lsadmin.exe',
                 'lsadm.exe',
+                'lc.exe',
                 'ida.dll',
                 'ida32.dll',
                 'dbgsrv/linux_server',
@@ -691,6 +712,10 @@ def main(argv: list) -> int:
                 'plugins/pin_user.dll',
                 'plugins/win32_stub.dll',
                 'plugins/xnu_user.dll',
+                'plugins/bochs_user.dll',
+                'plugins/replay_user.dll',
+                'plugins/win32_user.dll',
+                'plugins/windbg_user.dll',
             ]
 
             for file in files:
@@ -702,6 +727,7 @@ def main(argv: list) -> int:
                 'hvui',
                 'lsadmin',
                 'lsadm',
+                'lc',
                 'libida.dylib',
                 'libida32.dylib',
                 'dbgsrv/linux_server',
@@ -723,6 +749,10 @@ def main(argv: list) -> int:
                 'plugins/pin_user.dylib',
                 'plugins/win32_stub.dylib',
                 'plugins/xnu_user.dylib',
+                'plugins/bochs_user.dylib',
+                'plugins/replay_user.dylib',
+                'plugins/win32_user.dylib',
+                'plugins/windbg_user.dylib',
             ]
 
             for file in files:
