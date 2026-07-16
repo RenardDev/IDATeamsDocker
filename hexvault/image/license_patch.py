@@ -4,7 +4,6 @@
 import platform
 import sys
 import os
-import sys
 import re
 import socket
 import subprocess
@@ -27,6 +26,17 @@ ORIGINAL_PUBLIC_MODULUS = bytes.fromhex('EDFD425CF978546E8911225884436C571405256
 
 PRIVATE_KEY = bytes.fromhex('77C86ABBB7F3BB134436797B68FF47BEB1A5457816608DBFB72641814DD464DD640D711D5732D3017A1C4E63D835822F00A4EAB619A2C4791CF33F9F57F9C2AE4D9EED9981E79AC9B8F8A411F68F25B9F0C05D04D11E22A3A0D8D4672B56A61F1532282FF4E4E74759E832B70E98B9D102D07E9FB9BA8D15810B144970029874')
 NEW_PUBLIC_MODULUS = bytes.fromhex('EDFD42CBF978546E8911225884436C57140525650BCF6EBFE80EDBC5FB1DE68F4C66C29CB22EB668788AFCB0ABBB718044584B810F8970CDDF227385F75D5DDDD91D4F18937A08AA83B28C49D12DC92E7505BB38809E91BD0FBD2F2E6AB1D2E33C0C55D5BDDD478EE8BF845FCEF3C82B9D2929ECB71F4D1B3DB96E3A8E7AAF93')
+
+REPLACE_940_ORIGINAL = bytes.fromhex('29F4481F796F9F66F2FF13CC4AB5B54F60845DB603BA2C0BAC8A9BC4B6CBDEFC5C62BFC2F5EE850AC45EA97AD347E8B56DBA5085AF8C8AAD9CC2EC626CA78A068006D658F68651DA31A0A77C65A70ED73A40D53B08EDD403C095AA0BCFFA52F313EBCACAAA2CE5024A4E2B9AA70FC6092F38AE094D71E43F7690B5DDD3E9E4F7')
+REPLACE_940_NEW = bytes.fromhex('A107B71C8A08BA5350934F7CF6E81BE3A24DC2E35F7200D80CBD70B37ED6811DD2146D3CB7E20AD19B2544C0EF14C5C66FFBBDF226EC3F3D544C04385303CA4A7179299340022F5D50948BCF8A60307E2C196329E51A5296DC419E40FEF3EF7C6F015A09EBD979E79615338985643E666C14897F9F597E11F44341F496D56861')
+
+PUBLIC_MODULUS_940 = bytes.fromhex('3F0307607FED562FD5A163ADC40FCC603373CAA28414E64CDC4552A555B13AD4B3AD0A812800A03195300FD71634B90EDB0D69EA710EFEBB2B0B9E72DA2EFFB149DE70BCBFA94B86AF01CE455DBBD5FA987207651C7B60C2E4CAFD0654188D98C30F64DC084D8547F0AC32DB91124AF82B3B15BF922A31F1D5E332F27615CEA7')
+PRIVATE_KEY_940 = bytes.fromhex('8B3F5FDFAD7F87239734C530E2ECEBEB4FA48D79518756C15FD54636801CF7EA6367100566BF8B52B16BEC05258D8426EA94C15841AB2D37802C07349DF4C208584E86D25A6BFB82966CB2DDCD3D654E9994E814CA470577362A937CC984E404A0B68D173AAB3180130118E1B03ED209A9D8757560A85A3C9B0D3380E7907C4F')
+PADKEY_940 = bytes.fromhex('E2A7C300DFCC777F89B57500D8151C7FB1D97B3F9F170393311234CEEB9E377AE2A7C300DFCC777F89B57500D8151C7FB1D97B3F9F170393311234CEEB9E377AE2A7C300DFCC777F89B57500D8151C7FB1D97B3F9F170393311234CEEB9E377AE2A7C300DFCC777F89B57500D8151C7FB1D97B3F9F170393311234CEEB9E37')
+
+SIGNATURE_SIZE_940 = 128
+SIGN_BLOCK_SIZE_940 = 127
+HASH_OFFSET_940 = 95
 
 HAVE_NEW_ROOT_CA_CERTIFICATE = False
 if CURRENT_DIRECTORY.joinpath('CA').joinpath('CA.pem').exists():
@@ -143,15 +153,22 @@ def bytes_to_bigint(data: bytes) -> int:
 def bigint_to_bytes(n: int) -> bytes:
     return n.to_bytes((n.bit_length() + 7) // 8, byteorder='little')
 
-def decrypt_message(message: bytes, public_key: int, exponent: int = 0x13) -> bytes:
-    decrypted = pow(bytes_to_bigint(message), exponent, public_key)
-    decrypted = bigint_to_bytes(decrypted)
-    return decrypted[::-1]
+#def decrypt_message(message: bytes, public_key: int, exponent: int = 0x13) -> bytes:
+#    decrypted = pow(bytes_to_bigint(message), exponent, public_key)
+#    decrypted = bigint_to_bytes(decrypted)
+#    return decrypted[::-1]
 
 def encrypt_message(message: bytes, private_key: int, public_key: int) -> bytes:
     encrypted = pow(bytes_to_bigint(message[::-1]), private_key, public_key)
     encrypted = bigint_to_bytes(encrypted)
     return encrypted
+
+def encrypt_message_940(message: bytes) -> bytes:
+    modulus = int.from_bytes(PUBLIC_MODULUS_940, byteorder='little')
+    private_exponent = int.from_bytes(PRIVATE_KEY_940, byteorder='little')
+    message_value = int.from_bytes(message, byteorder='big')
+    encrypted_value = pow(message_value % modulus, private_exponent, modulus)
+    return encrypted_value.to_bytes(SIGNATURE_SIZE_940, byteorder='little')
 
 # License
 
@@ -177,8 +194,10 @@ def encrypt_message(message: bytes, private_key: int, public_key: int) -> bytes:
 #  HEXMIPS    - MIPS Decompiler
 #  HEXRV64    - RISC-V64 Decompiler
 #  HEXRV      - RISC-V Decompiler
-#  HEXARC     - ARC Decompiler
 #  HEXARC64   - ARC64 Decompiler
+#  HEXARC     - ARC Decompiler
+#  HEXV850    - V850 Decompiler
+#  HEXDALVIK  - Dalvik Decompiler
 #  HEXCX64    - x64 Decompiler (cloud)
 #  HEXCX86    - x86 Decompiler (cloud)
 #  HEXCARM64  - ARM64 Decompiler (cloud)
@@ -189,8 +208,10 @@ def encrypt_message(message: bytes, private_key: int, public_key: int) -> bytes:
 #  HEXCMIPS   - MIPS Decompiler (cloud)
 #  HEXCRV64   - RISC-V64 Decompiler (cloud)
 #  HEXCRV     - RISC-V Decompiler (cloud)
-#  HEXCARC    - ARC Decompiler (cloud)
 #  HEXCARC64  - ARC64 Decompiler (cloud)
+#  HEXCARC    - ARC Decompiler (cloud)
+#  HEXCV850   - V850 Decompiler (cloud)
+#  HEXCDALVIK - Dalvik Decompiler (cloud)
 #  LUMINA     - Lumina Server
 #  TEAMS      - Vault Server
 
@@ -230,6 +251,25 @@ def generate_license(license_type: str, product_id: str, edition_id: str, descri
     data = {
         'license_type': license_type,
         'product_id': product_id,
+        'edition_id': edition_id,
+        'description': description,
+        'seats': seats,
+        'start_date': start_date,
+        'end_date': end_date,
+        'issued_on': issued_on,
+        'owner': owner,
+        'add_ons': add_ons,
+        'features': features,
+        'id': id
+    }
+
+    return data
+
+def generate_license_940(license_type: str, product_id: str, edition_id: str, description: str, seats: int, start_date: str, end_date: str, issued_on: str, owner: str, add_ons: list, features: list, id: str) -> dict:
+    data = {
+        'license_type': license_type,
+        'product_id': product_id,
+        'product_version': '9.4',
         'edition_id': edition_id,
         'description': description,
         'seats': seats,
@@ -287,6 +327,23 @@ def sign_license_package(license: dict, private_key: int, public_key: int) -> st
 
     return encrypted.hex().upper()
 
+def sign_license_package_940(license: dict) -> str:
+    data = { 'payload': license['payload'] }
+    data_str = to_alphabetical_json(data)
+
+    digest = hashlib.sha256(data_str.encode('utf-8')).digest()
+
+    unsigned_block = bytearray(SIGN_BLOCK_SIZE_940)
+    unsigned_block[HASH_OFFSET_940:HASH_OFFSET_940 + len(digest)] = digest
+
+    signing_block = bytearray(unsigned_block[index] ^ PADKEY_940[index] for index in range(SIGN_BLOCK_SIZE_940))
+    if signing_block[0] == 0:
+        signing_block[0] ^= 1
+
+    signature = encrypt_message_940(signing_block)
+
+    return signature.hex().upper()
+
 # Patch
 
 def patch_file(file_path: Path) -> bool:
@@ -307,27 +364,73 @@ def patch_file(file_path: Path) -> bool:
 
     if data:
         if HAVE_NEW_ROOT_CA_CERTIFICATE:
-            if data.find(NEW_PUBLIC_MODULUS[:6]) != -1 or data.find(NEW_ROOT_CA_CERTIFICATE) != -1 or data.find(NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) != -1:
+            if (
+                data.find(NEW_PUBLIC_MODULUS[:6]) != -1
+                or data.find(NEW_ROOT_CA_CERTIFICATE) != -1
+                or data.find(NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) != -1
+                or data.find(REPLACE_940_NEW) != -1
+            ):
                 print(f'INFO: `{file_path.name}` already has a patch.')
                 return False
 
-            if data.find(ORIGINAL_PUBLIC_MODULUS[:6]) == -1 and data.find(ORIGINAL_ROOT_CA_CERTIFICATE) == -1 and data.find(ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) == -1:
+            if (
+                data.find(ORIGINAL_PUBLIC_MODULUS[:6]) == -1
+                and data.find(ORIGINAL_ROOT_CA_CERTIFICATE) == -1
+                and data.find(ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) == -1
+                and data.find(REPLACE_940_ORIGINAL) == -1
+            ):
                 print(f'ERROR: Patch for `{file_path.name}` is not supported!')
                 return False
         else:
-            if data.find(NEW_PUBLIC_MODULUS[:6]) != -1:
+            if (
+                data.find(NEW_PUBLIC_MODULUS[:6]) != -1
+                or data.find(REPLACE_940_NEW) != -1
+            ):
                 print(f'INFO: `{file_path.name}` already has a patch.')
                 return False
 
-            if data.find(ORIGINAL_PUBLIC_MODULUS[:6]) == -1:
+            if (
+                data.find(ORIGINAL_PUBLIC_MODULUS[:6]) == -1
+                and data.find(REPLACE_940_ORIGINAL) == -1
+            ):
                 print(f'ERROR: Patch for `{file_path.name}` is not supported!')
                 return False
 
-        data = data.replace(ORIGINAL_PUBLIC_MODULUS[:6], NEW_PUBLIC_MODULUS[:6])
+        if data.find(ORIGINAL_PUBLIC_MODULUS[:6]) != -1:
+            data = data.replace(
+                ORIGINAL_PUBLIC_MODULUS[:6],
+                NEW_PUBLIC_MODULUS[:6],
+            )
+
+            print('INFO: Public modulus successful patched.')
+
+        if data.find(REPLACE_940_ORIGINAL) != -1:
+            data = data.replace(
+                REPLACE_940_ORIGINAL,
+                REPLACE_940_NEW,
+            )
+
+            print('INFO: 940 version successful patched.')
 
         if HAVE_NEW_ROOT_CA_CERTIFICATE:
-            data = data.replace(ORIGINAL_ROOT_CA_CERTIFICATE, NEW_ROOT_CA_CERTIFICATE)
-            data = data.replace(ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS, NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS)
+            ca_patched = False
+
+            if data.find(ORIGINAL_ROOT_CA_CERTIFICATE) != -1:
+                data = data.replace(
+                    ORIGINAL_ROOT_CA_CERTIFICATE,
+                    NEW_ROOT_CA_CERTIFICATE,
+                )
+                ca_patched = True
+
+            if data.find(ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS) != -1:
+                data = data.replace(
+                    ORIGINAL_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS,
+                    NEW_ROOT_CA_CERTIFICATE_WITHOUT_HEADERS,
+                )
+                ca_patched = True
+
+            if ca_patched:
+                print('INFO: CA successful patched.')
 
         with open(file_path, 'wb') as f:
             f.write(data)
@@ -452,6 +555,7 @@ def main(argv: list) -> int:
                 license_package = from_alphabetical_json(f.read())
                 if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
                     is_valid_license = True
+
         if is_valid_license:
             return 0
 
@@ -469,31 +573,35 @@ def main(argv: list) -> int:
         # Add-ons
 
         add_ons_list = [
-            'HEXX86',
             'HEXX64',
-            'HEXARM',
+            'HEXX86',
             'HEXARM64',
-            'HEXMIPS',
-            'HEXMIPS64',
-            'HEXPPC',
+            'HEXARM',
             'HEXPPC64',
-            'HEXRV',
+            'HEXPPC',
+            'HEXMIPS64',
+            'HEXMIPS',
             'HEXRV64',
-            'HEXARC',
+            'HEXRV',
             'HEXARC64',
+            'HEXARC',
+            'HEXV850',
+            'HEXDALVIK',
 
-            #'HEXCX86',
             #'HEXCX64',
+            #'HEXCX86',
+            #'HEXCARM64'
             #'HEXCARM',
-            #'HEXCARM64',
-            #'HEXCMIPS',
-            #'HEXCMIPS64',
-            #'HEXCPPC',
             #'HEXCPPC64',
-            #'HEXCRV',
+            #'HEXCPPC',
+            #'HEXCMIPS64',
+            #'HEXCMIPS',
             #'HEXCRV64',
+            #'HEXCRV',
+            #'HEXCARC64',
             #'HEXCARC',
-            #'HEXCARC64'
+            #'HEXCV850',
+            #'HEXCDALVIK',
 
             'TEAMS',
             'LUMINA'
@@ -523,6 +631,186 @@ def main(argv: list) -> int:
             f.write(serialized)
             print('INFO: License generated!')
 
+    if 'ida-pro-940' in argv:
+        if OS_NAME == 'Linux':
+            files = [
+                'hv',
+                'hvui',
+                'lsadmin',
+                'lsadm',
+                'libida.so',
+                'libida32.so',
+                'dbgsrv/linux_server',
+                'dbgsrv/linux_server32',
+                'dbgsrv/mac_server',
+                'dbgsrv/mac_server32',
+                'dbgsrv/mac_server_arm',
+                'dbgsrv/mac_server_arme',
+                'dbgsrv/win32_remote32',
+                'dbgsrv/win64_remote.exe',
+                'dbgsrv/win32_remote32.exe',
+                'plugins/armlinux_stub.so',
+                'plugins/arm_mac_stub.so',
+                'plugins/dalvik_user.so',
+                'plugins/gdb_user.so',
+                'plugins/ios_user.so',
+                'plugins/linux_stub.so',
+                'plugins/mac_stub.so',
+                'plugins/pin_user.so',
+                'plugins/win32_stub.so',
+                'plugins/xnu_user.so',
+            ]
+
+            for file in files:
+                patch_file(CURRENT_DIRECTORY.joinpath(file))
+                
+        elif OS_NAME == 'Windows':
+            files = [
+                'hv.exe',
+                'hvui.exe',
+                'lsadmin.exe',
+                'lsadm.exe',
+                'ida.dll',
+                'ida32.dll',
+                'dbgsrv/linux_server',
+                'dbgsrv/linux_server32',
+                'dbgsrv/mac_server',
+                'dbgsrv/mac_server32',
+                'dbgsrv/mac_server_arm',
+                'dbgsrv/mac_server_arme',
+                'dbgsrv/win32_remote32',
+                'dbgsrv/win64_remote.exe',
+                'dbgsrv/win32_remote32.exe',
+                'plugins/armlinux_stub.dll',
+                'plugins/arm_mac_stub.dll',
+                'plugins/dalvik_user.dll',
+                'plugins/gdb_user.dll',
+                'plugins/ios_user.dll',
+                'plugins/linux_stub.dll',
+                'plugins/mac_stub.dll',
+                'plugins/pin_user.dll',
+                'plugins/win32_stub.dll',
+                'plugins/xnu_user.dll',
+            ]
+
+            for file in files:
+                patch_file(CURRENT_DIRECTORY.joinpath(file))
+
+        elif OS_NAME == 'iOS':
+            files = [
+                'hv',
+                'hvui',
+                'lsadmin',
+                'lsadm',
+                'libida.dylib',
+                'libida32.dylib',
+                'dbgsrv/linux_server',
+                'dbgsrv/linux_server32',
+                'dbgsrv/mac_server',
+                'dbgsrv/mac_server32',
+                'dbgsrv/mac_server_arm',
+                'dbgsrv/mac_server_arme',
+                'dbgsrv/win32_remote32',
+                'dbgsrv/win64_remote.exe',
+                'dbgsrv/win32_remote32.exe',
+                'plugins/armlinux_stub.dylib',
+                'plugins/arm_mac_stub.dylib',
+                'plugins/dalvik_user.dylib',
+                'plugins/gdb_user.dylib',
+                'plugins/ios_user.dylib',
+                'plugins/linux_stub.dylib',
+                'plugins/mac_stub.dylib',
+                'plugins/pin_user.dylib',
+                'plugins/win32_stub.dylib',
+                'plugins/xnu_user.dylib',
+            ]
+
+            for file in files:
+                patch_file(CURRENT_DIRECTORY.joinpath(file))
+
+        license_path = CURRENT_DIRECTORY.joinpath('idapro.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package_940(license_package) == license_package['signature']:
+                    is_valid_license = True
+
+        if is_valid_license:
+            return 0
+
+        # Set up
+
+        start_date = datetime.now().strftime('%Y-%m-%d')
+        issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date   = '2038-01-18' # '2038-01-19 03:14:07'
+        owner      = 'RenardDev'
+        name       = 'RenardDev'
+        email      = 'zeze839@gmail.com'
+
+        license_id = generate_id(ID_5=0x00)
+
+        # Add-ons
+
+        add_ons_list = [
+            'HEXX64',
+            'HEXX86',
+            'HEXARM64',
+            'HEXARM',
+            'HEXPPC64',
+            'HEXPPC',
+            'HEXMIPS64',
+            'HEXMIPS',
+            'HEXRV64',
+            'HEXRV',
+            'HEXARC64',
+            'HEXARC',
+            'HEXV850',
+            'HEXDALVIK',
+
+            #'HEXCX64',
+            #'HEXCX86',
+            #'HEXCARM64'
+            #'HEXCARM',
+            #'HEXCPPC64',
+            #'HEXCPPC',
+            #'HEXCMIPS64',
+            #'HEXCMIPS',
+            #'HEXCRV64',
+            #'HEXCRV',
+            #'HEXCARC64',
+            #'HEXCARC',
+            #'HEXCV850',
+            #'HEXCDALVIK',
+
+            'TEAMS',
+            'LUMINA'
+        ]
+
+        add_ons = []
+        for idx, add_on in enumerate(add_ons_list):
+            license_id_copy = license_id.copy()
+            license_id_copy[5] += idx + 1
+            add_ons.append(generate_add_on(add_on, format_id(license_id), start_date, end_date, format_id(license_id_copy)))
+
+        # Licenses
+
+        licenses = [
+            generate_license_940('named', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', 1, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id))
+        ]
+
+        # Package
+
+        license_package = generate_license_package(1, name, email, licenses)
+        license_package['signature'] = sign_license_package_940(license_package)
+
+        # File
+
+        serialized = to_alphabetical_json(license_package)
+        with open(license_path, 'w') as f:
+            f.write(serialized)
+            print('INFO: License generated!')
+
     if 'hexvault' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('vault_server'))
@@ -534,6 +822,7 @@ def main(argv: list) -> int:
                 license_package = from_alphabetical_json(f.read())
                 if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
                     is_valid_license = True
+
         if is_valid_license:
             return 0
 
@@ -580,6 +869,64 @@ def main(argv: list) -> int:
             f.write(serialized)
             print('INFO: License generated!')
 
+    if 'hexvault-940' in argv:
+        if OS_NAME == 'Linux':
+            patch_file(CURRENT_DIRECTORY.joinpath('vault_server'))
+
+        license_path = CURRENT_DIRECTORY.joinpath('teams_server.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package_940(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+
+        if is_valid_license:
+            return 0
+
+        # Set up
+
+        start_date = datetime.now().strftime('%Y-%m-%d')
+        issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date   = '2038-01-18' # '2038-01-19 03:14:07'
+        seats      = 32767
+        name       = 'RenardDev'
+        email      = 'zeze839@gmail.com'
+
+        license_id = generate_id(ID_5=0x00)
+
+        # Add-ons
+
+        add_ons_list = [
+            'TEAMS'
+        ]
+
+        add_ons = []
+        for idx, add_on in enumerate(add_ons_list):
+            license_id_copy = license_id.copy()
+            license_id_copy[5] += idx + 1
+            add_ons.append(generate_add_on(add_on, format_id(license_id), start_date, end_date, format_id(license_id_copy)))
+
+        # Licenses
+
+        licenses = []
+
+        for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
+            licenses.append(generate_license_940('named', 'TEAMS_SERVER', 'teams-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
+
+        # Package
+
+        license_package = generate_license_package(1, name, email, licenses)
+        license_package['signature'] = sign_license_package_940(license_package, private_key, public_key)
+
+        # File
+
+        serialized = from_alphabetical_json(license_package)
+        with open(license_path, 'w') as f:
+            f.write(serialized)
+            print('INFO: License generated!')
+
     if 'lumina' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('lumina_server'))
@@ -592,6 +939,7 @@ def main(argv: list) -> int:
                 license_package = from_alphabetical_json(f.read())
                 if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
                     is_valid_license = True
+
         if is_valid_license:
             return 0
 
@@ -638,6 +986,65 @@ def main(argv: list) -> int:
             f.write(serialized)
             print('INFO: License generated!')
 
+    if 'lumina-940' in argv:
+        if OS_NAME == 'Linux':
+            patch_file(CURRENT_DIRECTORY.joinpath('lumina_server'))
+            patch_file(CURRENT_DIRECTORY.joinpath('lc'))
+
+        license_path = CURRENT_DIRECTORY.joinpath('lumina_server.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package_940(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+
+        if is_valid_license:
+            return 0
+
+        # Set up
+
+        start_date = datetime.now().strftime('%Y-%m-%d')
+        issued_on  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date   = '2038-01-18' # '2038-01-19 03:14:07'
+        seats      = 32767
+        name       = 'RenardDev'
+        email      = 'zeze839@gmail.com'
+
+        license_id = generate_id(ID_5=0x00)
+
+        # Add-ons
+
+        add_ons_list = [
+            'LUMINA'
+        ]
+
+        add_ons = []
+        for idx, add_on in enumerate(add_ons_list):
+            license_id_copy = license_id.copy()
+            license_id_copy[5] += idx + 1
+            add_ons.append(generate_add_on(add_on, format_id(license_id), start_date, end_date, format_id(license_id_copy)))
+
+        # Licenses
+
+        licenses = []
+
+        for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
+            licenses.append(generate_license_940('named', 'LUMINA_SERVER', 'lumina-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(license_id)))
+
+        # Package
+
+        license_package = generate_license_package(1, name, email, licenses)
+        license_package['signature'] = sign_license_package_940(license_package, private_key, public_key)
+
+        # File
+
+        serialized = from_alphabetical_json(license_package)
+        with open(license_path, 'w') as f:
+            f.write(serialized)
+            print('INFO: License generated!')
+
     if 'hexlicsrv' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('license_server'))
@@ -650,6 +1057,7 @@ def main(argv: list) -> int:
                 license_package = from_alphabetical_json(f.read())
                 if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
                     is_valid_license = True
+
         if is_valid_license:
             return 0
 
@@ -669,29 +1077,35 @@ def main(argv: list) -> int:
         # Add-ons
 
         add_ons_list = [
-            'HEXX86',
             'HEXX64',
-            'HEXARM',
+            'HEXX86',
             'HEXARM64',
-            'HEXMIPS',
-            'HEXMIPS64',
-            'HEXPPC',
+            'HEXARM',
             'HEXPPC64',
+            'HEXPPC',
+            'HEXMIPS64',
+            'HEXMIPS',
             'HEXRV64',
-            'HEXARC',
+            'HEXRV',
             'HEXARC64',
+            'HEXARC',
+            'HEXV850',
+            'HEXDALVIK',
 
-            #'HEXCX86',
             #'HEXCX64',
+            #'HEXCX86',
+            #'HEXCARM64'
             #'HEXCARM',
-            #'HEXCARM64',
-            #'HEXCMIPS',
-            #'HEXCMIPS64',
-            #'HEXCPPC',
             #'HEXCPPC64',
+            #'HEXCPPC',
+            #'HEXCMIPS64',
+            #'HEXCMIPS',
             #'HEXCRV64',
+            #'HEXCRV',
+            #'HEXCARC64',
             #'HEXCARC',
-            #'HEXCARC64'
+            #'HEXCV850',
+            #'HEXCDALVIK',
 
             'TEAMS',
             'LUMINA'
@@ -721,6 +1135,100 @@ def main(argv: list) -> int:
         # File
 
         serialized = to_alphabetical_json(license_package)
+        with open(license_path, 'w') as f:
+            f.write(serialized)
+            print('INFO: License generated!')
+
+    if 'hexlicsrv-940' in argv:
+        if OS_NAME == 'Linux':
+            patch_file(CURRENT_DIRECTORY.joinpath('license_server'))
+            patch_file(CURRENT_DIRECTORY.joinpath('lsadm'))
+
+        license_path = CURRENT_DIRECTORY.joinpath('license_server.hexlic')
+        is_valid_license = False
+        if license_path.exists():
+            with open(license_path, 'r') as f:
+                license_package = from_alphabetical_json(f.read())
+                if sign_license_package_940(license_package, private_key, public_key) == license_package['signature']:
+                    is_valid_license = True
+
+        if is_valid_license:
+            return 0
+
+        # Set up
+
+        start_date      = datetime.now().strftime('%Y-%m-%d')
+        issued_on       = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        end_date        = '2038-01-18' # '2038-01-19 03:14:07'
+        seats           = 32767
+        owner           = 'RenardDev'
+        name            = 'RenardDev'
+        email           = 'zeze839@gmail.com'
+
+        hexlicsrv_license_id = generate_id(ID_5=0x00)
+        license_id           = generate_id(ID_5=0x00)
+
+        # Add-ons
+
+        add_ons_list = [
+            'HEXX64',
+            'HEXX86',
+            'HEXARM64',
+            'HEXARM',
+            'HEXPPC64',
+            'HEXPPC',
+            'HEXMIPS64',
+            'HEXMIPS',
+            'HEXRV64',
+            'HEXRV',
+            'HEXARC64',
+            'HEXARC',
+            'HEXV850',
+            'HEXDALVIK',
+
+            #'HEXCX64',
+            #'HEXCX86',
+            #'HEXCARM64'
+            #'HEXCARM',
+            #'HEXCPPC64',
+            #'HEXCPPC',
+            #'HEXCMIPS64',
+            #'HEXCMIPS',
+            #'HEXCRV64',
+            #'HEXCRV',
+            #'HEXCARC64',
+            #'HEXCARC',
+            #'HEXCV850',
+            #'HEXCDALVIK',
+
+            'TEAMS',
+            'LUMINA'
+        ]
+
+        add_ons = []
+        for idx, add_on in enumerate(add_ons_list):
+            license_id_copy = license_id.copy()
+            license_id_copy[5] += idx + 1
+            add_ons.append(generate_add_on(add_on, format_id(license_id), start_date, end_date, format_id(license_id_copy)))
+
+        # Licenses
+
+        licenses = []
+
+        for mac in get_mac_addresses():
+            print(f'INFO: Generating license for {mac} MAC.')
+            licenses.append(generate_license_940('named', 'LICENSE_SERVER', 'license-server', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, mac, add_ons, [], format_id(hexlicsrv_license_id)))
+
+        licenses.append(generate_license_940('floating', 'IDAPRO', 'ida-pro', 'Licensed by RenardDev', seats, start_date, end_date, issued_on, owner, add_ons, [], format_id(license_id)))
+
+        # Package
+
+        license_package = generate_license_package(1, name, email, licenses)
+        license_package['signature'] = sign_license_package_940(license_package, private_key, public_key)
+
+        # File
+
+        serialized = from_alphabetical_json(license_package)
         with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')

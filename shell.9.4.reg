@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\*\shell\IDA Professional 9.4]
+"Icon"="C:\\Program Files\\IDA Professional 9.4\\ida.ico"
+@="IDA Professional 9.4"
+
+[HKEY_CLASSES_ROOT\*\shell\IDA Professional 9.4\command]
+@="\"C:\\Program Files\\IDA Professional 9.4\\ida.exe\" \"%1\""
