@@ -94,6 +94,79 @@ die() {
   exit 1
 }
 
+ensure_secret_service_bus() {
+  local machine_id_file="/etc/machine-id"
+  local legacy_machine_id_file="/var/lib/dbus/machine-id"
+  local default_bus_address="unix:path=/run/hexlicsrv-dbus/session-bus"
+  local bus_socket=""
+
+  mkdir -p /var/lib/dbus
+
+  if [[ ! -s "$machine_id_file" ]]; then
+    rm -f -- "$machine_id_file"
+    dbus-uuidgen --ensure="$machine_id_file" \
+      || die "Failed to generate D-Bus machine-id"
+  fi
+
+  ln -sfn "$machine_id_file" "$legacy_machine_id_file"
+
+  export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-$default_bus_address}"
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+  mkdir -p "$XDG_RUNTIME_DIR" /run/hexlicsrv-dbus
+  chmod 700 "$XDG_RUNTIME_DIR"
+  chmod 755 /run/hexlicsrv-dbus
+
+  if ! dbus-send \
+       --bus="$DBUS_SESSION_BUS_ADDRESS" \
+       --type=method_call \
+       --print-reply \
+       --dest=org.freedesktop.DBus \
+       /org/freedesktop/DBus \
+       org.freedesktop.DBus.ListNames \
+       >/dev/null 2>&1; then
+    if [[ "$DBUS_SESSION_BUS_ADDRESS" == unix:path=/run/hexlicsrv-dbus/* ]]; then
+      bus_socket="${DBUS_SESSION_BUS_ADDRESS#unix:path=}"
+      bus_socket="${bus_socket%%,*}"
+      rm -f -- "$bus_socket"
+    fi
+
+    local bus_info=()
+    mapfile -t bus_info < <(
+      dbus-daemon \
+        --session \
+        --address="$DBUS_SESSION_BUS_ADDRESS" \
+        --fork \
+        --print-address=1 \
+        --print-pid=1
+    )
+
+    ((${#bus_info[@]} >= 2)) \
+      || die "Failed to start the D-Bus session bus"
+
+    export DBUS_SESSION_BUS_ADDRESS="${bus_info[0]}"
+    [[ -z "$bus_socket" || ! -S "$bus_socket" ]] || chmod 666 "$bus_socket"
+    log "Started D-Bus session bus (pid=${bus_info[1]})"
+  else
+    log "Using existing D-Bus session bus"
+  fi
+
+  gnome-keyring-daemon --start --components=secrets >/dev/null \
+    || die "Failed to start the Secret Service"
+
+  dbus-send \
+    --bus="$DBUS_SESSION_BUS_ADDRESS" \
+    --type=method_call \
+    --print-reply \
+    --dest=org.freedesktop.secrets \
+    /org/freedesktop/secrets \
+    org.freedesktop.DBus.Peer.Ping \
+    >/dev/null 2>&1 \
+    || die "Secret Service is not reachable through D-Bus"
+
+  log "Secret Service is reachable"
+}
+
 ################################################################
 # Payload - pack/import
 ################################################################
@@ -813,6 +886,8 @@ perform_releases_sync() {
 ################################################################
 
 log "Bootstrap: creating directories"
+
+ensure_secret_service_bus
 
 mkdir -p \
   "$CA_PATH" \

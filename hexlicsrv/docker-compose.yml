@@ -10,6 +10,8 @@ services:
       # === App ===
       LICENSE_HOST: reversing.example.com
       LICENSE_PORT: "65434"
+      DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/hexlicsrv-dbus/session-bus"
+      XDG_RUNTIME_DIR: "/run/user/0"
 
       # === Sync (optional) ===
       # Enable and choose method: commits | releases

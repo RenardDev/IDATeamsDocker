@@ -47,8 +47,9 @@ openssl req -x509 \
 - `hexvault/docker-compose.yml`: `VAULT_HOST`
 - `lumina/docker-compose.yml`: `LUMINA_HOST`
 
-4. Configure MySQL secrets for Lumina:
+4. Configure service secrets:
 - Copy `.env.example` to `.env` (for example: `cp .env.example .env`)
+- Set `VAULT_PASSWORD` for the fixed HexVault admin user `hexvault`. It is applied immediately after the initial schema recreation.
 - Set strong values for `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD`
 
 5. Start services (from repository root):

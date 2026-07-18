@@ -10,6 +10,9 @@ services:
       # === App ===
       VAULT_HOST: reversing.example.com
       VAULT_PORT: "65433"
+      VAULT_PASSWORD: "${VAULT_PASSWORD:?Set VAULT_PASSWORD in .env or environment}"
+      DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/hexvault-dbus/session-bus"
+      XDG_RUNTIME_DIR: "/run/user/0"
 
       # === Sync (optional) ===
       # Enable and choose method: commits | releases

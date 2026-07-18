@@ -30,6 +30,7 @@ trap cleanup EXIT
 
 VAULT_HOST="${VAULT_HOST:-localhost}"
 VAULT_PORT="${VAULT_PORT:-65433}"
+VAULT_PASSWORD="${VAULT_PASSWORD:-}"
 
 ################################################################
 # Unified Sync Configuration
@@ -88,6 +89,79 @@ log() { printf '[%s] %s\n' "$(now_utc)" "$*"; }
 die() {
   printf '[%s] ERROR: %s\n' "$(now_utc)" "$*" >&2
   exit 1
+}
+
+ensure_secret_service_bus() {
+  local machine_id_file="/etc/machine-id"
+  local legacy_machine_id_file="/var/lib/dbus/machine-id"
+  local default_bus_address="unix:path=/run/hexvault-dbus/session-bus"
+  local bus_socket=""
+
+  mkdir -p /var/lib/dbus
+
+  if [[ ! -s "$machine_id_file" ]]; then
+    rm -f -- "$machine_id_file"
+    dbus-uuidgen --ensure="$machine_id_file" \
+      || die "Failed to generate D-Bus machine-id"
+  fi
+
+  ln -sfn "$machine_id_file" "$legacy_machine_id_file"
+
+  export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-$default_bus_address}"
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+  mkdir -p "$XDG_RUNTIME_DIR" /run/hexvault-dbus
+  chmod 700 "$XDG_RUNTIME_DIR"
+  chmod 755 /run/hexvault-dbus
+
+  if ! dbus-send \
+       --bus="$DBUS_SESSION_BUS_ADDRESS" \
+       --type=method_call \
+       --print-reply \
+       --dest=org.freedesktop.DBus \
+       /org/freedesktop/DBus \
+       org.freedesktop.DBus.ListNames \
+       >/dev/null 2>&1; then
+    if [[ "$DBUS_SESSION_BUS_ADDRESS" == unix:path=/run/hexvault-dbus/* ]]; then
+      bus_socket="${DBUS_SESSION_BUS_ADDRESS#unix:path=}"
+      bus_socket="${bus_socket%%,*}"
+      rm -f -- "$bus_socket"
+    fi
+
+    local bus_info=()
+    mapfile -t bus_info < <(
+      dbus-daemon \
+        --session \
+        --address="$DBUS_SESSION_BUS_ADDRESS" \
+        --fork \
+        --print-address=1 \
+        --print-pid=1
+    )
+
+    ((${#bus_info[@]} >= 2)) \
+      || die "Failed to start the D-Bus session bus"
+
+    export DBUS_SESSION_BUS_ADDRESS="${bus_info[0]}"
+    [[ -z "$bus_socket" || ! -S "$bus_socket" ]] || chmod 666 "$bus_socket"
+    log "Started D-Bus session bus (pid=${bus_info[1]})"
+  else
+    log "Using existing D-Bus session bus"
+  fi
+
+  gnome-keyring-daemon --start --components=secrets >/dev/null \
+    || die "Failed to start the Secret Service"
+
+  dbus-send \
+    --bus="$DBUS_SESSION_BUS_ADDRESS" \
+    --type=method_call \
+    --print-reply \
+    --dest=org.freedesktop.secrets \
+    /org/freedesktop/secrets \
+    org.freedesktop.DBus.Peer.Ping \
+    >/dev/null 2>&1 \
+    || die "Secret Service is not reachable through D-Bus"
+
+  log "Secret Service is reachable"
 }
 
 ################################################################
@@ -800,6 +874,8 @@ perform_releases_sync() {
 
 log "Bootstrap: creating directories"
 
+ensure_secret_service_bus
+
 mkdir -p \
   "$CA_PATH" \
   "$CONFIG_PATH" \
@@ -842,11 +918,22 @@ chmod 755       "${INSTALL_PATH}/vault_server" || true
 
 if [[ ! -f "$SCHEMA_LOCK" ]]; then
   if [[ "$SKIP_SCHEMA_RECREATE" -eq 0 ]]; then
+    [[ -n "$VAULT_PASSWORD" ]] \
+      || die "VAULT_PASSWORD is required for initial admin setup"
+
     log "Recreating schema..."
     "${INSTALL_PATH}/vault_server" \
       -f "$CONFIG_FILE" \
       -d "$DATA_PATH" \
       --recreate-schema
+
+    log "Initializing admin account 'hexvault'"
+    "${INSTALL_PATH}/vault_server" \
+      --config-file "$CONFIG_FILE" \
+      --set-admin "hexvault:${VAULT_PASSWORD}" \
+      || die "Failed to initialize admin account 'hexvault'"
+
+    log "Admin account 'hexvault' initialized"
   else
     log "Schema recreate skipped (restored from snapshot)"
   fi

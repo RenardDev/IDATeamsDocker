@@ -844,6 +844,7 @@ def main(argv: list) -> int:
     if 'hexvault' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('vault_server'))
+            patch_file(CURRENT_DIRECTORY.joinpath('hv'))
 
         license_path = CURRENT_DIRECTORY.joinpath('teams_server.hexlic')
         is_valid_license = False
@@ -902,6 +903,7 @@ def main(argv: list) -> int:
     if 'hexvault-940' in argv:
         if OS_NAME == 'Linux':
             patch_file(CURRENT_DIRECTORY.joinpath('vault_server'))
+            patch_file(CURRENT_DIRECTORY.joinpath('hv'))
 
         license_path = CURRENT_DIRECTORY.joinpath('teams_server.hexlic')
         is_valid_license = False

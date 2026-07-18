@@ -31,6 +31,8 @@ services:
       # === App ===
       LUMINA_HOST: reversing.example.com
       LUMINA_PORT: "443"
+      DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/lumina-dbus/session-bus"
+      XDG_RUNTIME_DIR: "/run/user/0"
 
       # === Database (must match the mysql service above) ===
       MYSQL_HOST: "mysql"
