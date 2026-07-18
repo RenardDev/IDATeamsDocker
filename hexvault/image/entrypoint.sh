@@ -835,7 +835,7 @@ else
 fi
 
 log "Patching license"
-python3 "${INSTALL_PATH}/license_patch.py" hexvault || die "Patch failed"
+python3 "${INSTALL_PATH}/license_patch.py" hexvault-940 || die "Patch failed"
 
 chown root:root "${INSTALL_PATH}/vault_server" || true
 chmod 755       "${INSTALL_PATH}/vault_server" || true

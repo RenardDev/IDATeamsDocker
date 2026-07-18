@@ -12,7 +12,7 @@ COPY entrypoint.sh /entrypoint.sh
 COPY license_patch.py /opt/lumina/license_patch.py
 
 RUN chmod +x /entrypoint.sh && \
-    echo -e '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ny\n\ny\n\n\n\n\n\n\ny\n\n\nn\ny\n\n' | /tmp/lumina_x64linux.run --mode text && \
+    /tmp/lumina_x64linux.run --mode unattended && \
     rm /tmp/lumina_x64linux.run && \
     mkdir -p /opt/lumina/{CA,config,data,logs}
 

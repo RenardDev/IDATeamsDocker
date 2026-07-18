@@ -908,7 +908,7 @@ def main(argv: list) -> int:
         if license_path.exists():
             with open(license_path, 'r') as f:
                 license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package, private_key, public_key) == license_package['signature']:
+                if sign_license_package_940(license_package) == license_package['signature']:
                     is_valid_license = True
 
         if is_valid_license:
@@ -948,11 +948,11 @@ def main(argv: list) -> int:
         # Package
 
         license_package = generate_license_package(1, name, email, licenses)
-        license_package['signature'] = sign_license_package_940(license_package, private_key, public_key)
+        license_package['signature'] = sign_license_package_940(license_package)
 
         # File
 
-        serialized = from_alphabetical_json(license_package)
+        serialized = to_alphabetical_json(license_package)
         with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')
@@ -1026,7 +1026,7 @@ def main(argv: list) -> int:
         if license_path.exists():
             with open(license_path, 'r') as f:
                 license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package, private_key, public_key) == license_package['signature']:
+                if sign_license_package_940(license_package) == license_package['signature']:
                     is_valid_license = True
 
         if is_valid_license:
@@ -1066,11 +1066,11 @@ def main(argv: list) -> int:
         # Package
 
         license_package = generate_license_package(1, name, email, licenses)
-        license_package['signature'] = sign_license_package_940(license_package, private_key, public_key)
+        license_package['signature'] = sign_license_package_940(license_package)
 
         # File
 
-        serialized = from_alphabetical_json(license_package)
+        serialized = to_alphabetical_json(license_package)
         with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')
@@ -1179,7 +1179,7 @@ def main(argv: list) -> int:
         if license_path.exists():
             with open(license_path, 'r') as f:
                 license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package, private_key, public_key) == license_package['signature']:
+                if sign_license_package_940(license_package) == license_package['signature']:
                     is_valid_license = True
 
         if is_valid_license:
@@ -1254,11 +1254,11 @@ def main(argv: list) -> int:
         # Package
 
         license_package = generate_license_package(1, name, email, licenses)
-        license_package['signature'] = sign_license_package_940(license_package, private_key, public_key)
+        license_package['signature'] = sign_license_package_940(license_package)
 
         # File
 
-        serialized = from_alphabetical_json(license_package)
+        serialized = to_alphabetical_json(license_package)
         with open(license_path, 'w') as f:
             f.write(serialized)
             print('INFO: License generated!')

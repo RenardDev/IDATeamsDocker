@@ -904,7 +904,7 @@ else
 fi
 
 log "Patching license"
-python3 "${INSTALL_PATH}/license_patch.py" lumina || die "Patch failed"
+python3 "${INSTALL_PATH}/license_patch.py" lumina-940 || die "Patch failed"
 
 chown root:root \
   "${INSTALL_PATH}/lumina_server" \

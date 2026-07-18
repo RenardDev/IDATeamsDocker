@@ -8,11 +8,7 @@ Simple Docker setup for:
 Installers are not included in this repository. Put each installer into the matching `image/` folder.
 
 Supported installer versions:
-- [IDA 9.0](https://docs.hex-rays.com/release-notes/9_0)
-- [IDA 9.1](https://docs.hex-rays.com/release-notes/9_1)
-- [IDA 9.2](https://docs.hex-rays.com/release-notes/9_2)
-- [IDA 9.3](https://docs.hex-rays.com/release-notes/9_3)
-- [IDA 9.3sp1](https://docs.hex-rays.com/release-notes/9_3sp1)
+- [IDA 9.4](https://docs.hex-rays.com/release-notes/9_4)
 
 ## Repository Layout
 
@@ -20,7 +16,7 @@ Supported installer versions:
 - `hexvault/` - HexVault image, config, data, logs, CA
 - `lumina/` - Lumina image, config, data, logs, CA, and MySQL volume
 - `ida/` - helper `license_patch.py` for local IDA client patching
-- `shell.9.0.reg`, `shell.9.1.reg`, `shell.9.2.reg`, `shell.9.3.reg` - Windows context-menu shortcuts
+- `shell.9.4.reg` - Windows context-menu shortcuts
 
 ## Requirements
 

@@ -850,7 +850,7 @@ else
 fi
 
 log "Patching license"
-python3 "${INSTALL_PATH}/license_patch.py" hexlicsrv \
+python3 "${INSTALL_PATH}/license_patch.py" hexlicsrv-940 \
   || die "Patch failed"
 
 chown root:root \
