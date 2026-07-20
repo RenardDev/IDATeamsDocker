@@ -1,0 +1,5 @@
+**
+!Dockerfile
+!entrypoint.sh
+!lumina_x64linux.run
+!license_patch.py

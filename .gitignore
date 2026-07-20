@@ -1,3 +1,19 @@
+# Local environment and Python cache files.
 .env
+.env.*
+!.env.example
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Proprietary installers must be supplied locally and must never be committed.
+**/image/*_x64linux.run
+
+# Defensive repository-wide coverage for generated server secrets and state.
+**/CA/*.key
+**/config/*.key
+**/config/*.crt
+hexvault/data/*.sqlite3*
+
+# Interrupted/local snapshot artifacts.
+**/*.tar.zst
+**/*.tar.zst.part_*

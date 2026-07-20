@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!entrypoint.sh
+!license_patch.py
+!hexlicsrv_x64linux.run

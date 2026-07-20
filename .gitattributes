@@ -1,2 +1,17 @@
-*.reg text=auto eol=crlf charset=utf-8
-*.sh  text eol=lf
+* text=auto
+
+# Linux container inputs must never be checked out with CRLF on Windows hosts.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.conf text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+.env.example text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.dockerignore text eol=lf
+
+# This file is imported by Windows Registry Editor.
+*.reg text eol=crlf

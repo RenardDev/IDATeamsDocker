@@ -1,49 +1,82 @@
-version: "3.9"
-
 services:
   hexvault:
-    container_name: hexvault
+    platform: linux/amd64
     build:
       context: ./image
     restart: unless-stopped
+    init: true
+    stop_grace_period: 10m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - SETGID
+      - SETUID
     environment:
       # === App ===
-      VAULT_HOST: reversing.example.com
-      VAULT_PORT: "65433"
-      VAULT_PASSWORD: "${VAULT_PASSWORD:?Set VAULT_PASSWORD in .env or environment}"
-      DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/hexvault-dbus/session-bus"
-      XDG_RUNTIME_DIR: "/run/user/0"
+      VAULT_HOST: "${VAULT_HOST:-reversing.example.com}"
+      VAULT_PORT: "${VAULT_PORT:-65433}"
+      # Required only when a fresh schema is created. Username is always hexvault.
+      VAULT_PASSWORD: "${VAULT_PASSWORD:-}"
 
-      # === Sync (optional) ===
-      # Enable and choose method: commits | releases
-      # SYNC_ENABLED: "true"
-      # SYNC_METHOD: "releases"
-
-      # Shared options for both methods
-      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
-      # SYNC_HOST_ID: hexvault
-      # SYNC_CHUNK_SIZE_MB: "49"
-      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
+      # === Sync (optional; configure through .env) ===
+      SYNC_ENABLED: "${SYNC_ENABLED:-false}"
+      SYNC_METHOD: "${SYNC_METHOD:-commits}"
+      SYNC_HOST_ID: "${SYNC_HOST_ID:-hexvault}"
+      SYNC_CHUNK_SIZE_MB: "${SYNC_CHUNK_SIZE_MB:-49}"
+      SYNC_INTERVAL_SECONDS: "${SYNC_INTERVAL_SECONDS:-3600}"
+      SYNC_NETWORK_TIMEOUT_SECONDS: "${SYNC_NETWORK_TIMEOUT_SECONDS:-300}"
+      SYNC_LOCK_TIMEOUT_SECONDS: "${SYNC_LOCK_TIMEOUT_SECONDS:-30}"
+      SYNC_FINAL_TIMEOUT_SECONDS: "${SYNC_FINAL_TIMEOUT_SECONDS:-300}"
+      SYNC_RELEASE_KEEP: "${SYNC_RELEASE_KEEP:-3}"
+      SYNC_MAX_RESTORE_MB: "${SYNC_MAX_RESTORE_MB:-10240}"
+      SYNC_MAX_EXTRACT_MB: "${SYNC_MAX_EXTRACT_MB:-20480}"
+      SYNC_AUTH_TOKEN: "${SYNC_AUTH_TOKEN:-}"
+      SYNC_ENCRYPTION_PASSPHRASE: "${SYNC_ENCRYPTION_PASSPHRASE:-}"
+      SYNC_FORCE_RESTORE: "${SYNC_FORCE_RESTORE:-false}"
+      SYNC_READ_ONLY: "${SYNC_READ_ONLY:-false}"
+      GH_REMOTE: "${GH_REMOTE:-}"
 
       # --- Commits mode ---
-      # GH_BRANCH: main
-      # GH_COMMIT_NAME: HexVault CI
-      # GH_COMMIT_EMAIL: hexvault@example.com
+      GH_BRANCH: "${GH_BRANCH:-main}"
+      GH_COMMIT_NAME: "${GH_COMMIT_NAME:-HexVault CI}"
+      GH_COMMIT_EMAIL: "${GH_COMMIT_EMAIL:-hexvault@example.com}"
+      GH_SSH_PRIVATE_KEY: "${GH_SSH_PRIVATE_KEY:-}"
+      GH_KNOWN_HOSTS: "${GH_KNOWN_HOSTS:-}"
+      # Multiline values can also be supplied directly by an override compose file.
       # GH_SSH_PRIVATE_KEY: |-
       #   -----BEGIN OPENSSH PRIVATE KEY-----
       #   ...
-      # GH_KNOWN_HOSTS: |-
+      # GH_KNOWN_HOSTS: |- # required for SSH; auto-accept is disabled
       #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI...
 
       # --- Releases mode ---
-      # GH_RELEASE_TAG: hexvault
-      # GH_RELEASE_NAME: HexVault
-      # GH_API: https://ghe.example.com/api/v3
-      # GH_UPLOAD: https://ghe.example.com/api/uploads
+      GH_RELEASE_TAG: "${GH_RELEASE_TAG:-hexvault}"
+      GH_RELEASE_NAME: "${GH_RELEASE_NAME:-HexVault}"
+      GH_API: "${GH_API:-}"
+      GH_UPLOAD: "${GH_UPLOAD:-}"
     volumes:
-      - ./CA:/opt/hexvault/CA
+      - ./CA/CA.pem:/opt/hexvault/CA/CA.pem:ro
+      - ./CA/CA.key:/run/hexvault-ca-key/CA.key:ro
       - ./config:/opt/hexvault/config
       - ./logs:/opt/hexvault/logs
       - ./data:/opt/hexvault/data
+      - ./recovery:/opt/hexvault/recovery
+      - ./keyrings:/var/lib/hexvault/.local/share/keyrings
     ports:
-      - "65433:65433"
+      - "${VAULT_PORT:-65433}:${VAULT_PORT:-65433}"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/$${VAULT_PORT}'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

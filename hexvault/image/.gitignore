@@ -1,0 +1,9 @@
+*.run
+*.tar
+*.tar.*
+*.key
+*.pem
+*.crt
+*.env
+__pycache__/
+*.pyc

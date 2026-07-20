@@ -1,38 +1,75 @@
-version: "3.9"
-
 services:
   mysql:
     image: mysql:8.0.40
-    container_name: mysql
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: "${MYSQL_DATABASE:-lumina}"
       MYSQL_USER: "${MYSQL_USER:-lumina}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env or environment}"
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env or environment}"
+    # Lumina 9.4 still requires mysql_native_password. This default covers fresh
+    # data directories; mysql-auth-init below also enforces it for an existing user.
     command: ["--default-authentication-plugin=mysql_native_password"]
     volumes:
       - ./db_data:/var/lib/mysql
+      - mysql_socket:/var/run/mysqld
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$${MYSQL_ROOT_PASSWORD}\" mysqladmin ping -h 127.0.0.1 -u root --silent"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  mysql-auth-init:
+    image: mysql:8.0.40
+    restart: "no"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_SOCKET: "/var/run/mysqld/mysqld.sock"
+      MYSQL_USER: "${MYSQL_USER:-lumina}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env or environment}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env or environment}"
+    entrypoint: ["/bin/bash", "/usr/local/bin/ensure-native-auth.sh"]
+    volumes:
+      - ./mysql/ensure-native-auth.sh:/usr/local/bin/ensure-native-auth.sh:ro
+      - mysql_socket:/var/run/mysqld:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "2"
 
   lumina:
-    container_name: lumina
+    platform: linux/amd64
     build:
       context: ./image
     restart: unless-stopped
     depends_on:
       mysql:
         condition: service_healthy
+      mysql-auth-init:
+        condition: service_completed_successfully
     environment:
       # === App ===
-      LUMINA_HOST: reversing.example.com
-      LUMINA_PORT: "443"
+      LUMINA_HOST: "${LUMINA_HOST:-reversing.example.com}"
+      LUMINA_PORT: "${LUMINA_PORT:-443}"
+      LUMINA_LOG_PATH: "${LUMINA_LOG_PATH:-/dev/stdout}"
       DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/lumina-dbus/session-bus"
-      XDG_RUNTIME_DIR: "/run/user/0"
 
       # === Database (must match the mysql service above) ===
       MYSQL_HOST: "mysql"
@@ -41,20 +78,40 @@ services:
       MYSQL_USER: "${MYSQL_USER:-lumina}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env or environment}"
 
-      # Optional: if Lumina should build the "vault" schema flavor
-      VAULT_HOST: reversing.example.com
-      VAULT_PORT: "65433"
+      # Optional Vault schema flavor. Disabled unless explicitly enabled.
+      VAULT_ENABLED: "${VAULT_ENABLED:-false}"
+      VAULT_HOST: "${VAULT_HOST:-}"
+      VAULT_PORT: "${VAULT_PORT:-65433}"
 
       # === Sync (optional) ===
       # Enable and choose method: commits | releases
-      # SYNC_ENABLED: "true"
-      # SYNC_METHOD: "releases"
+      SYNC_ENABLED: "${SYNC_ENABLED:-false}"
+      SYNC_METHOD: "${SYNC_METHOD:-commits}"
+      SYNC_READ_ONLY: "${SYNC_READ_ONLY:-false}"
+      SYNC_INTERVAL_SECONDS: "${SYNC_INTERVAL_SECONDS:-3600}" # 0 disables periodic sync; shutdown sync remains enabled
+      SYNC_NETWORK_TIMEOUT_SECONDS: "${SYNC_NETWORK_TIMEOUT_SECONDS:-300}"
+      SYNC_LOCK_TIMEOUT_SECONDS: "${SYNC_LOCK_TIMEOUT_SECONDS:-30}"
+      SYNC_FORCE_RESTORE: "${SYNC_FORCE_RESTORE:-false}"
+      SYNC_MAX_RESTORE_MB: "${SYNC_MAX_RESTORE_MB:-10240}"
+      SYNC_MAX_EXTRACT_MB: "${SYNC_MAX_EXTRACT_MB:-20480}"
+      SYNC_FINAL_TIMEOUT_SECONDS: "${SYNC_FINAL_TIMEOUT_SECONDS:-300}"
+      SYNC_RELEASE_KEEP: "${SYNC_RELEASE_KEEP:-3}"
 
       # Shared options for both methods
-      # GH_REMOTE: https://github.com/yourorg/yourrepo.git
-      # SYNC_HOST_ID: lumina
-      # SYNC_CHUNK_SIZE_MB: "49"
-      # SYNC_AUTH_TOKEN: github_pat_token_here # required for write access/private repos
+      GH_REMOTE: "${GH_REMOTE:-}"
+      SYNC_HOST_ID: "${SYNC_HOST_ID:-lumina}"
+      SYNC_CHUNK_SIZE_MB: "${SYNC_CHUNK_SIZE_MB:-49}"
+      SYNC_AUTH_TOKEN: "${SYNC_AUTH_TOKEN:-}" # required for writable Releases/HTTPS commits and private reads
+      SYNC_ENCRYPTION_PASSPHRASE: "${SYNC_ENCRYPTION_PASSPHRASE:-}" # required whenever SYNC_ENABLED=true
+      GH_BRANCH: "${GH_BRANCH:-main}"
+      GH_COMMIT_NAME: "${GH_COMMIT_NAME:-Lumina CI}"
+      GH_COMMIT_EMAIL: "${GH_COMMIT_EMAIL:-lumina@example.com}"
+      GH_SSH_PRIVATE_KEY: "${GH_SSH_PRIVATE_KEY:-}"
+      GH_KNOWN_HOSTS: "${GH_KNOWN_HOSTS:-}"
+      GH_RELEASE_TAG: "${GH_RELEASE_TAG:-lumina}"
+      GH_RELEASE_NAME: "${GH_RELEASE_NAME:-Lumina}"
+      GH_API: "${GH_API:-}"
+      GH_UPLOAD: "${GH_UPLOAD:-}"
 
       # --- Commits mode ---
       # GH_BRANCH: main
@@ -72,9 +129,41 @@ services:
       # GH_API: https://ghe.example.com/api/v3
       # GH_UPLOAD: https://ghe.example.com/api/uploads
     volumes:
-      - ./CA:/opt/lumina/CA
+      - ./CA/CA.pem:/opt/lumina/CA/CA.pem:ro
+      - ./CA/CA.key:/run/lumina-ca/CA.key:ro
       - ./config:/opt/lumina/config
       - ./logs:/opt/lumina/logs
       - ./data:/opt/lumina/data
+      - ./keyrings:/var/lib/lumina/.local/share/keyrings
     ports:
-      - "443:443"
+      - "${LUMINA_PORT:-443}:${LUMINA_PORT:-443}"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z -w 5 127.0.0.1 $${LUMINA_PORT:-443}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    init: true
+    stop_grace_period: 10m
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - SETGID
+      - SETUID
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  mysql_socket:
