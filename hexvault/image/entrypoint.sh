@@ -10,6 +10,7 @@ umask 077
 
 declare -a CLEANUP_FILES=()
 declare -a CLEANUP_DIRS=()
+ADMIN_BOOTSTRAP_PID=""
 
 cleanup_add_file() { CLEANUP_FILES+=("$1"); }
 cleanup_add_dir()  { CLEANUP_DIRS+=("$1"); }
@@ -34,6 +35,21 @@ cleanup_remove_file() {
 
 cleanup() {
   set +e
+  if [[ "${ADMIN_BOOTSTRAP_PID:-}" =~ ^[1-9][0-9]*$ ]]; then
+    kill -TERM "$ADMIN_BOOTSTRAP_PID" 2>/dev/null || true
+    kill -TERM -- "-${ADMIN_BOOTSTRAP_PID}" 2>/dev/null || true
+    for _ in {1..50}; do
+      if ! kill -0 "$ADMIN_BOOTSTRAP_PID" 2>/dev/null && \
+         ! kill -0 -- "-${ADMIN_BOOTSTRAP_PID}" 2>/dev/null; then
+        break
+      fi
+      sleep 0.1
+    done
+    kill -KILL "$ADMIN_BOOTSTRAP_PID" 2>/dev/null || true
+    kill -KILL -- "-${ADMIN_BOOTSTRAP_PID}" 2>/dev/null || true
+    wait "$ADMIN_BOOTSTRAP_PID" 2>/dev/null || true
+    ADMIN_BOOTSTRAP_PID=""
+  fi
   for f in "${CLEANUP_FILES[@]:-}"; do
     [[ -n "$f" && -f "$f" ]] && rm -f -- "$f"
   done
@@ -534,13 +550,21 @@ validate_data_namespace() {
         if [[ "$mode" != snapshot ]] || ! path_is_safe_regular_file "$entry"; then
           die "Reserved schema-identity entry is invalid in HexVault data"
         fi ;;
-      *) die "Unexpected HexVault data entry requires manual review: $entry" ;;
+      .hexvault.rollback.*.sqlite3|.hexvault.preupgrade.*)
+        die "Reserved HexVault data entry requires manual review: $entry" ;;
+      *)
+        if ! path_is_safe_regular_file "$entry" && ! path_is_safe_directory "$entry"; then
+          die "Unsupported user-data entry: $entry"
+        fi ;;
     esac
   done < <(find "$root" -mindepth 1 -maxdepth 1 -print0)
-  if [[ -d "$root/store" && ! -L "$root/store" ]]; then
-    unsafe="$(find "$root/store" -xdev -mindepth 1 ! -type f ! -type d -print -quit)"
-    [[ -z "$unsafe" ]] || die "Unsupported object-store entry: $unsafe"
-  fi
+  while IFS= read -r -d '' entry; do
+    if mountpoint -q "$entry"; then
+      die "Nested mount point is not supported in HexVault user data: $entry"
+    fi
+  done < <(find "$root" -xdev -mindepth 1 -type d -print0)
+  unsafe="$(find "$root" -xdev -mindepth 1 ! -type f ! -type d -print -quit)"
+  [[ -z "$unsafe" ]] || die "Unsupported user-data entry: $unsafe"
 }
 
 sqlite_schema_state() {
@@ -592,6 +616,14 @@ except sqlite3.Error:
     raise SystemExit(2)
 raise SystemExit(0 if exists else 1)
 PY
+}
+
+vault_user_count() {
+  local database="$1" count
+  count="$(sqlite3 -readonly -cmd '.timeout 30000' "$database" \
+    'SELECT count(*) FROM users;' 2>/dev/null)" || return 1
+  [[ "$count" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$count"
 }
 
 read_schema_marker() {
@@ -3543,7 +3575,9 @@ discard_failed_initial_schema() {
   rm -f -- "$DB_FILE" "${DB_FILE}-wal" "${DB_FILE}-shm" \
     "${DB_FILE}-journal"
   rm -f -- "$SCHEMA_VERSION_FILE"
-  if [[ -d "$DATA_PATH/store" ]]; then
+  if [[ -e "$DATA_PATH/store" || -L "$DATA_PATH/store" ]]; then
+    path_is_safe_directory "$DATA_PATH/store" \
+      || die "Refusing to clean an unsafe reserved object-store path"
     find "$DATA_PATH/store" -mindepth 1 -maxdepth 1 ! -name '.gitignore' \
       -exec rm -rf -- {} +
   fi
@@ -3614,8 +3648,138 @@ upgrade_schema_if_needed() {
   log "Schema upgrade completed"
 }
 
+create_admin_bootstrap_tls() {
+  local directory="$1" openssl_config serial cert_pub key_pub service_gid
+  openssl_config="${directory}/openssl.cnf"
+  cat >"$openssl_config" <<'EOF'
+[req]
+distinguished_name=req_distinguished_name
+[req_distinguished_name]
+[v3_req]
+keyUsage=critical, digitalSignature, keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=IP:127.0.0.1
+EOF
+  openssl req -newkey rsa:3072 -nodes \
+    -keyout "${directory}/bootstrap.key" \
+    -out "${directory}/bootstrap.csr" -subj '/CN=127.0.0.1' \
+    -config "$openssl_config" -reqexts v3_req >/dev/null 2>&1 \
+    || return 1
+  serial="0x$(openssl rand -hex 16)"
+  [[ "$serial" =~ ^0x[0-9a-f]{32}$ ]] || return 1
+  openssl x509 -req -in "${directory}/bootstrap.csr" \
+    -CA "${CA_PATH}/CA.pem" -CAkey "$CA_KEY_FILE" -set_serial "$serial" \
+    -out "${directory}/bootstrap.crt" -days 1 -sha512 \
+    -extensions v3_req -extfile "$openssl_config" >/dev/null 2>&1 \
+    || return 1
+  openssl x509 -in "${directory}/bootstrap.crt" -noout \
+    -checkip 127.0.0.1 >/dev/null 2>&1 || return 1
+  openssl verify -CAfile "${CA_PATH}/CA.pem" \
+    "${directory}/bootstrap.crt" >/dev/null 2>&1 || return 1
+  cert_pub="$(openssl x509 -in "${directory}/bootstrap.crt" \
+    -pubkey -noout 2>/dev/null | openssl pkey -pubin -outform DER 2>/dev/null | \
+    sha256sum | awk '{print $1}')" || return 1
+  key_pub="$(openssl pkey -in "${directory}/bootstrap.key" \
+    -pubout -outform DER 2>/dev/null | sha256sum | awk '{print $1}')" || return 1
+  [[ "$cert_pub" =~ ^[0-9a-f]{64}$ && "$cert_pub" == "$key_pub" ]] \
+    || return 1
+  service_gid="$(id -g "$SERVICE_USER")"
+  chown root:"$service_gid" "${directory}/bootstrap.crt" \
+    "${directory}/bootstrap.key"
+  chmod 640 "${directory}/bootstrap.crt" "${directory}/bootstrap.key"
+}
+
+stop_admin_bootstrap_server() {
+  local pid="${ADMIN_BOOTSTRAP_PID:-}" timed_out=false
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 0
+  kill -TERM "$pid" 2>/dev/null || true
+  kill -TERM -- "-$pid" 2>/dev/null || true
+  for _ in {1..100}; do
+    if ! kill -0 "$pid" 2>/dev/null && ! kill -0 -- "-$pid" 2>/dev/null; then
+      break
+    fi
+    sleep 0.1
+  done
+  if kill -0 "$pid" 2>/dev/null || kill -0 -- "-$pid" 2>/dev/null; then
+    timed_out=true
+    kill -KILL "$pid" 2>/dev/null || true
+    kill -KILL -- "-$pid" 2>/dev/null || true
+  fi
+  wait "$pid" 2>/dev/null || true
+  ADMIN_BOOTSTRAP_PID=""
+  [[ "$timed_out" == false ]] || warn "Initial-admin bootstrap server required SIGKILL"
+}
+
+wait_for_admin_bootstrap_server() {
+  local attempt
+  for ((attempt=0; attempt<300; attempt++)); do
+    kill -0 "$ADMIN_BOOTSTRAP_PID" 2>/dev/null || return 1
+    if { exec 9<>"/dev/tcp/127.0.0.1/${VAULT_PORT}"; } 2>/dev/null; then
+      exec 9>&- 9<&-
+      return 0
+    fi
+    sleep 0.1
+  done
+  return 1
+}
+
+bootstrap_initial_admin_user() {
+  local count directory server_log client_log client_status service_uid service_gid
+  local -a command
+  count="$(vault_user_count "$DB_FILE")" || return 1
+  [[ "$count" == 0 ]] || return 1
+  directory="$(mktemp -d /run/hexvault-admin-bootstrap.XXXXXX)"
+  cleanup_add_dir "$directory"
+  service_uid="$(id -u "$SERVICE_USER")"
+  service_gid="$(id -g "$SERVICE_USER")"
+  chown root:"$service_gid" "$directory"
+  chmod 750 "$directory"
+  create_admin_bootstrap_tls "$directory" || return 1
+  server_log="${directory}/server.log"
+  client_log="${directory}/client.log"
+  command=(
+    "${INSTALL_PATH}/vault_server" -f "$CONFIG_FILE" -i 127.0.0.1
+    -p "$VAULT_PORT" -c "${directory}/bootstrap.crt"
+    -k "${directory}/bootstrap.key" -L "${INSTALL_PATH}/teams_server.hexlic"
+    -d "$DATA_PATH"
+  )
+  (
+    exec setsid setpriv --reuid "$service_uid" --regid "$service_gid" \
+      --init-groups --inh-caps=-all --ambient-caps=-all \
+      env -u VAULT_PASSWORD -u SYNC_AUTH_TOKEN -u SYNC_ENCRYPTION_PASSPHRASE \
+        -u GH_SSH_PRIVATE_KEY -u GIT_SSH_COMMAND \
+        HOME=/var/lib/hexvault USER="$SERVICE_USER" LOGNAME="$SERVICE_USER" \
+        XDG_DATA_HOME=/var/lib/hexvault/.local/share \
+        XDG_CONFIG_HOME=/var/lib/hexvault/.config "${command[@]}"
+  ) >"$server_log" 2>&1 &
+  ADMIN_BOOTSTRAP_PID=$!
+  if ! wait_for_admin_bootstrap_server; then
+    stop_admin_bootstrap_server
+    warn "Initial-admin bootstrap server did not become ready"
+    return 1
+  fi
+
+  set +e
+  VAULT_HOST=127.0.0.1 VAULT_PORT="$VAULT_PORT" \
+  VAULT_USER=hexvault VAULT_PASS="$VAULT_PASSWORD" \
+    run_as_service timeout --kill-after=5s 30s "${INSTALL_PATH}/hv" info \
+      >"$client_log" 2>&1
+  client_status=$?
+  set -e
+  stop_admin_bootstrap_server
+  if [[ "$client_status" -ne 0 ]]; then
+    warn "Official hv client could not create the fixed initial user"
+    return 1
+  fi
+  count="$(vault_user_count "$DB_FILE")" || return 1
+  [[ "$count" == 1 ]] || return 1
+  vault_user_exists "$DB_FILE" hexvault || return 1
+  rm -rf -- "$directory"
+  cleanup_remove_dir "$directory"
+}
+
 ensure_schema_and_admin() {
-  local state user_state
+  local state user_state user_count
   validate_data_namespace "$DATA_PATH" live
   set +e
   sqlite_schema_state "$DB_FILE"
@@ -3642,21 +3806,29 @@ ensure_schema_and_admin() {
         discard_failed_initial_schema
         die "Schema recreation did not create a valid users schema"
       fi
+      user_count="$(vault_user_count "$DB_FILE")" || {
+        discard_failed_initial_schema
+        die "Could not verify the freshly recreated users table"
+      }
+      if [[ "$user_count" != 0 ]]; then
+        discard_failed_initial_schema
+        die "Fresh schema unexpectedly contains users; refusing initial-admin bootstrap"
+      fi
+      log "Creating fixed initial user 'hexvault' through the official hv client"
+      if ! bootstrap_initial_admin_user; then
+        discard_failed_initial_schema
+        die "Initial user creation failed; partial fresh database was removed"
+      fi
       set +e
       vault_user_exists "$DB_FILE" hexvault
       user_state=$?
       set -e
-      case "$user_state" in
-        0) ;;
-        1)
-          discard_failed_initial_schema
-          die "Schema was recreated, but required user 'hexvault' does not exist; refusing --set-admin" ;;
-        *)
-          discard_failed_initial_schema
-          die "Could not verify user 'hexvault' in the recreated users table" ;;
-      esac
+      [[ "$user_state" -eq 0 ]] || {
+        discard_failed_initial_schema
+        die "Fixed initial user 'hexvault' was not persisted"
+      }
       # Deliberately adjacent to --recreate-schema: there is no independent admin lock.
-      log "Promoting freshly created user 'hexvault' to admin"
+      log "Resetting and promoting freshly created user 'hexvault'"
       if ! run_as_service "${INSTALL_PATH}/vault_server" \
           --config-file "$CONFIG_FILE" --set-admin "hexvault:${VAULT_PASSWORD}"; then
         discard_failed_initial_schema
@@ -3885,6 +4057,12 @@ cleanup_stale_run_artifacts() {
   find /run -xdev -mindepth 1 -maxdepth 1 \
     -name 'hexvault-curl-headers.*' \( -type d -o -type l \) \
     -exec rm -rf -- {} +
+  unsafe="$(find /run -xdev -mindepth 1 -maxdepth 1 \
+    -name 'hexvault-admin-bootstrap.*' ! -type d ! -type l -print -quit)"
+  [[ -z "$unsafe" ]] || die "Unsafe stale initial-admin bootstrap path: $unsafe"
+  find /run -xdev -mindepth 1 -maxdepth 1 \
+    -name 'hexvault-admin-bootstrap.*' \( -type d -o -type l \) \
+    -exec rm -rf -- {} +
   for stale in "${private_dirs[@]}"; do
     if [[ -e "$stale" || -L "$stale" ]]; then
       [[ -d "$stale" || -L "$stale" ]] \
@@ -3899,7 +4077,7 @@ supervise_server() {
   local app_pid sync_pid="" final_pid="" status=0 stopping=false final_sync_status
   local -a command=(
     "${INSTALL_PATH}/vault_server" -f "$CONFIG_FILE" -p "$VAULT_PORT"
-    -l /dev/stdout -c "${CONFIG_PATH}/hexvault.crt"
+    -c "${CONFIG_PATH}/hexvault.crt"
     -k "${CONFIG_PATH}/hexvault.key" -L "${INSTALL_PATH}/teams_server.hexlic"
     -d "$DATA_PATH"
   )
@@ -4016,10 +4194,12 @@ main() {
     || die "Patch failed"
   path_is_safe_regular_file "${INSTALL_PATH}/vault_server" \
     || die "vault_server is missing or unsafe after patching"
+  path_is_safe_regular_file "${INSTALL_PATH}/hv" \
+    || die "hv is missing or unsafe after patching"
   path_is_safe_regular_file "${INSTALL_PATH}/teams_server.hexlic" \
     || die "teams_server.hexlic is missing or unsafe"
-  chown root:root "${INSTALL_PATH}/vault_server"
-  chmod 755 "${INSTALL_PATH}/vault_server"
+  chown root:root "${INSTALL_PATH}/vault_server" "${INSTALL_PATH}/hv"
+  chmod 755 "${INSTALL_PATH}/vault_server" "${INSTALL_PATH}/hv"
   ensure_tls_certificate
   chown "root:$service_gid" "$CONFIG_FILE" "$TLS_CERT" "$TLS_KEY" \
     "${INSTALL_PATH}/teams_server.hexlic"

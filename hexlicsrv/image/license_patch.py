@@ -564,15 +564,15 @@ def main(argv: list) -> int:
                 patch_file(CURRENT_DIRECTORY.joinpath(file))
 
         license_path = CURRENT_DIRECTORY.joinpath('idapro.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -759,15 +759,15 @@ def main(argv: list) -> int:
                 patch_file(CURRENT_DIRECTORY.joinpath(file))
 
         license_path = CURRENT_DIRECTORY.joinpath('idapro.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package_940(license_package) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -847,15 +847,15 @@ def main(argv: list) -> int:
             patch_file(CURRENT_DIRECTORY.joinpath('hv'))
 
         license_path = CURRENT_DIRECTORY.joinpath('teams_server.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -906,15 +906,15 @@ def main(argv: list) -> int:
             patch_file(CURRENT_DIRECTORY.joinpath('hv'))
 
         license_path = CURRENT_DIRECTORY.joinpath('teams_server.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package_940(license_package) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -965,15 +965,15 @@ def main(argv: list) -> int:
             patch_file(CURRENT_DIRECTORY.joinpath('lc'))
 
         license_path = CURRENT_DIRECTORY.joinpath('lumina_server.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -1024,15 +1024,15 @@ def main(argv: list) -> int:
             patch_file(CURRENT_DIRECTORY.joinpath('lc'))
 
         license_path = CURRENT_DIRECTORY.joinpath('lumina_server.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package_940(license_package) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -1083,15 +1083,15 @@ def main(argv: list) -> int:
             patch_file(CURRENT_DIRECTORY.joinpath('lsadm'))
 
         license_path = CURRENT_DIRECTORY.joinpath('license_server.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package(license_package, private_key, public_key) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 
@@ -1177,15 +1177,15 @@ def main(argv: list) -> int:
             patch_file(CURRENT_DIRECTORY.joinpath('lsadm'))
 
         license_path = CURRENT_DIRECTORY.joinpath('license_server.hexlic')
-        is_valid_license = False
-        if license_path.exists():
-            with open(license_path, 'r') as f:
-                license_package = from_alphabetical_json(f.read())
-                if sign_license_package_940(license_package) == license_package['signature']:
-                    is_valid_license = True
+        #is_valid_license = False
+        #if license_path.exists():
+        #    with open(license_path, 'r') as f:
+        #        license_package = from_alphabetical_json(f.read())
+        #        if sign_license_package_940(license_package) == license_package['signature']:
+        #            is_valid_license = True
 
-        if is_valid_license:
-            return 0
+        #if is_valid_license:
+        #    return 0
 
         # Set up
 

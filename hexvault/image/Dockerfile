@@ -36,6 +36,7 @@ RUN apt-get update && \
     command -v runuser >/dev/null && \
     command -v setpriv >/dev/null && \
     command -v setsid >/dev/null && \
+    command -v mountpoint >/dev/null && \
     command -v flock >/dev/null && \
     command -v timeout >/dev/null && \
     command -v sqlite3 >/dev/null && \

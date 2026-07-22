@@ -3098,7 +3098,7 @@ EOF
 }
 
 write_schema_marker() {
-  local tmp fingerprint
+  local expected_fingerprint="${1:-}" tmp fingerprint
   sqlite_schema_state "$DB_FILE" \
     || die "Refusing to write a marker for an invalid SQLite schema"
   [[ ! -L "$SCHEMA_MARKER" ]] || die "Unsafe schema marker target"
@@ -3108,6 +3108,11 @@ write_schema_marker() {
     || die "Could not fingerprint the initialized SQLite schema"
   [[ "$fingerprint" =~ ^[0-9a-f]{64}$ ]] \
     || die "Initialized SQLite schema fingerprint is malformed"
+  if [[ -n "$expected_fingerprint" ]]; then
+    [[ "$expected_fingerprint" =~ ^[0-9a-f]{64}$ && \
+       "$fingerprint" == "$expected_fingerprint" ]] \
+      || die "SQLite schema changed during exact-current marker adoption"
+  fi
   tmp="$(mktemp "${RECOVERY_PATH}/.schema-state.XXXXXX")"
   cleanup_add_file "$tmp"
   jq -n --argjson schema_version "$SCHEMA_VERSION" \
@@ -3119,6 +3124,69 @@ write_schema_marker() {
   mv -f -- "$tmp" "$SCHEMA_MARKER"
   sync -f "$SCHEMA_MARKER" "$RECOVERY_PATH" \
     || die "Could not durably write the schema marker"
+}
+
+adopt_unmarked_current_schema() {
+  local state reference_dir reference_db reference_config reference_connection
+  local live_fingerprint reference_fingerprint service_uid service_gid
+  set +e
+  sqlite_schema_state "$DB_FILE"
+  state=$?
+  set -e
+  [[ "$state" -eq 0 ]] || return 0
+
+  if [[ -e "$SCHEMA_MARKER" || -L "$SCHEMA_MARKER" ]]; then
+    validate_schema_marker_against_database "$SCHEMA_MARKER" "$DB_FILE"
+    ((10#$LOADED_SCHEMA_VERSION <= 10#$SCHEMA_VERSION)) \
+      || die "Database schema marker $LOADED_SCHEMA_VERSION is newer than image schema $SCHEMA_VERSION; refusing downgrade"
+    return 0
+  fi
+
+  # A data bind can survive while the separately-mounted recovery directory is
+  # new. Never infer a version merely from a readable SQLite file: generate the
+  # exact current schema in an isolated database and compare canonical DDL
+  # fingerprints before creating the missing identity marker.
+  [[ ! -e "$SCHEMA_INIT_MARKER" && ! -L "$SCHEMA_INIT_MARKER" && \
+     ! -e "$SCHEMA_UPGRADE_BACKUP" && ! -L "$SCHEMA_UPGRADE_BACKUP" && \
+     ! -e "$SCHEMA_UPGRADE_MARKER_BACKUP" && \
+     ! -L "$SCHEMA_UPGRADE_MARKER_BACKUP" && \
+     ! -e "$RESTORE_MARKER" && ! -L "$RESTORE_MARKER" ]] \
+    || die "Cannot adopt an unmarked schema while a recovery transaction exists"
+
+  reference_dir="$(mktemp -d /run/hexlicsrv-schema-reference.XXXXXX)"
+  cleanup_add_dir "$reference_dir"
+  service_uid="$(id -u "$SERVICE_USER")"
+  service_gid="$(id -g "$SERVICE_USER")"
+  chown "$service_uid:$service_gid" "$reference_dir"
+  chmod 700 "$reference_dir"
+  reference_db="${reference_dir}/hexlicsrv.sqlite3"
+  reference_config="${reference_dir}/hexlicsrv.conf"
+  reference_connection="sqlite3;Data Source=${reference_db};"
+  printf '%s\n' "$reference_connection" >"$reference_config"
+  chown "$service_uid:$service_gid" "$reference_config"
+  chmod 600 "$reference_config"
+
+  log "Verifying an existing unmarked SQLite schema against image version ${SCHEMA_VERSION}"
+  if ! run_as_service "${INSTALL_PATH}/license_server" \
+      -f "$reference_config" -C "$reference_connection" --recreate-schema; then
+    die "Could not generate the isolated current-schema reference database"
+  fi
+  sqlite_schema_state "$reference_db" \
+    || die "Isolated current-schema reference database failed validation"
+  live_fingerprint="$(compute_schema_fingerprint "$DB_FILE")" \
+    || die "Could not fingerprint the existing unmarked SQLite schema"
+  reference_fingerprint="$(compute_schema_fingerprint "$reference_db")" \
+    || die "Could not fingerprint the isolated current-schema reference"
+  [[ "$live_fingerprint" =~ ^[0-9a-f]{64}$ && \
+     "$reference_fingerprint" =~ ^[0-9a-f]{64}$ ]] \
+    || die "Current-schema comparison produced a malformed fingerprint"
+  [[ "$live_fingerprint" == "$reference_fingerprint" ]] \
+    || die "Existing unmarked SQLite schema is not the exact current image schema; refusing automatic adoption"
+
+  write_schema_marker "$reference_fingerprint"
+  rm -rf -- "$reference_dir"
+  cleanup_remove_dir "$reference_dir"
+  log "Adopted an exact current SQLite schema and created its missing marker"
 }
 
 write_schema_init_marker() {
@@ -3474,7 +3542,6 @@ supervise_server() {
     -f "$CONFIG_FILE"
     -C "$DB_CONNECTION"
     -p "$LICENSE_PORT"
-    -l /dev/stdout
     -c "${CONFIG_PATH}/hexlicsrv.crt"
     -k "${CONFIG_PATH}/hexlicsrv.key"
     -L "${INSTALL_PATH}/license_server.hexlic"
@@ -3616,7 +3683,7 @@ cleanup_stale_runtime_artifacts() {
 }
 
 cleanup_stale_runtime_secrets() {
-  local path sync_ssh_dir="/run/hexlicsrv-sync-ssh"
+  local path reference_dir sync_ssh_dir="/run/hexlicsrv-sync-ssh"
   local -a files=(
     /run/hexlicsrv-github-headers.*
     /run/hexlicsrv-final-sync-timeout.*
@@ -3627,6 +3694,11 @@ cleanup_stale_runtime_secrets() {
     [[ -f "$path" || -L "$path" ]] \
       || die "Unsafe stale runtime secret artifact: $path"
     rm -f -- "$path"
+  done
+  for reference_dir in /run/hexlicsrv-schema-reference.*; do
+    [[ -d "$reference_dir" || -L "$reference_dir" ]] \
+      || die "Unsafe stale schema-reference path: $reference_dir"
+    rm -rf -- "$reference_dir"
   done
   if [[ -L "$sync_ssh_dir" ]]; then
     rm -f -- "$sync_ssh_dir"
@@ -3745,6 +3817,7 @@ main() {
   recover_interrupted_schema_initialization
   recover_interrupted_schema_upgrade
   ensure_secret_service_bus
+  adopt_unmarked_current_schema
   perform_startup_sync
   # SYNC_FORCE_RESTORE is deliberately a one-shot startup override.
   SYNC_FORCE_RESTORE=false

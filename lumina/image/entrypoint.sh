@@ -313,6 +313,8 @@ validate_settings() {
   local resolved_log_path single_line_value vault_host_kind
   [[ -n "$MYSQL_HOST" && -n "$MYSQL_USER" ]] \
     || die "MYSQL_HOST and MYSQL_USER must not be empty"
+  classify_endpoint_host "$MYSQL_HOST" >/dev/null \
+    || die "MYSQL_HOST must be a valid DNS name or IP address"
   [[ "$MYSQL_USER" =~ ^[A-Za-z0-9_]{1,32}$ ]] \
     || die "MYSQL_USER must contain 1-32 letters, digits, or underscores"
   for single_line_value in "$MYSQL_HOST" "$MYSQL_USER" "$MYSQL_PASSWORD" \
@@ -322,6 +324,8 @@ validate_settings() {
   done
   [[ "$MYSQL_DATABASE" =~ ^[A-Za-z0-9_]+$ ]] \
     || die "MYSQL_DATABASE must contain only letters, digits, and underscores"
+  [[ "$MYSQL_PASSWORD" != *';'* ]] \
+    || die "MYSQL_PASSWORD must not contain ';' because Lumina uses it as a connection-string delimiter"
   normalize_uint MYSQL_PORT 1 65535
   normalize_uint MYSQL_WAIT_TIMEOUT 1 604800
   normalize_uint LUMINA_PORT 1 65535
@@ -3294,36 +3298,22 @@ write_managed_config() {
     [[ -f "$config_file" && ! -L "$config_file" ]] \
       || die "Lumina config path must be a regular non-symlink file"
   fi
-  local value server port database user password vault_value tmp
+  local value connection_string vault_value tmp
   for value in "$MYSQL_HOST" "$MYSQL_PORT" "$MYSQL_DATABASE" "$MYSQL_USER" "$MYSQL_PASSWORD" "$VAULT_HOST" "$VAULT_PORT"; do
     [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] \
       || die "Config values must not contain newlines"
   done
 
-  # Quote every connection-string component, double embedded quotes for the
-  # connection-string parser, then escape for the outer Lumina config string.
-  connection_quote() {
-    local component="$1" escaped="" char i
-    for ((i=0; i<${#component}; i++)); do
-      char="${component:i:1}"
-      case "$char" in
-        '\') escaped+='\\' ;;
-        '"') escaped+='\"\"' ;;
-        *) escaped+="$char" ;;
-      esac
-    done
-    printf '\\"%s\\"' "$escaped"
-  }
-  server="$(connection_quote "$MYSQL_HOST")"
-  port="$(connection_quote "$MYSQL_PORT")"
-  database="$(connection_quote "$MYSQL_DATABASE")"
-  user="$(connection_quote "$MYSQL_USER")"
-  password="$(connection_quote "$MYSQL_PASSWORD")"
+  # Lumina treats quotes around individual connection-string values as literal
+  # characters. Build the documented unquoted form, escaping only for the
+  # surrounding lumina.conf string.
+  connection_string="mysql;Server=${MYSQL_HOST};Port=${MYSQL_PORT};Database=${MYSQL_DATABASE};Uid=${MYSQL_USER};Pwd=${MYSQL_PASSWORD};"
+  connection_string="${connection_string//\\/\\\\}"
+  connection_string="${connection_string//\"/\\\"}"
 
   tmp="$(mktemp "${CONFIG_PATH}/.lumina.conf.XXXXXX")"
   cleanup_add_file "$tmp"
-  printf 'CONNSTR="mysql;Server=%s;Port=%s;Database=%s;Uid=%s;Pwd=%s;"\n' \
-    "$server" "$port" "$database" "$user" "$password" > "$tmp"
+  printf 'CONNSTR="%s"\n' "$connection_string" > "$tmp"
   if is_true "$VAULT_ENABLED"; then
     vault_value="${VAULT_HOST}:${VAULT_PORT}"
     vault_value="${vault_value//\\/\\\\}"
@@ -4542,10 +4532,24 @@ shutdown_sync_bounded() {
 supervise_server() {
   local config_file="${CONFIG_PATH}/lumina.conf"
   local server_status=0 next_sync=$((SECONDS + SYNC_INTERVAL_SECONDS)) server_deadline
+  local -a server_args=(
+    -f "$config_file"
+    -p "$LUMINA_PORT"
+    -D "$DATA_PATH"
+    -c "${CONFIG_PATH}/lumina.crt"
+    -k "${CONFIG_PATH}/lumina.key"
+    -L "${INSTALL_PATH}/lumina_server.hexlic"
+  )
+  if [[ "$LUMINA_LOG_PATH" != /dev/stdout && "$LUMINA_LOG_PATH" != /dev/stderr ]]; then
+    server_args+=( -l "$LUMINA_LOG_PATH" )
+  fi
   trap request_shutdown TERM INT
 
   log "Starting lumina_server as unprivileged user on :${LUMINA_PORT}"
   (
+    if [[ "$LUMINA_LOG_PATH" == /dev/stderr ]]; then
+      exec 1>&2
+    fi
     exec env -i \
         -u MYSQL_PASSWORD \
         -u MYSQL_PWD \
@@ -4563,16 +4567,9 @@ supervise_server() {
         HOME=/var/lib/lumina \
         XDG_DATA_HOME=/var/lib/lumina/.local/share \
         XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-        DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        USER=lumina LOGNAME=lumina \
-        gosu lumina:lumina "${INSTALL_PATH}/lumina_server" \
-          -f "$config_file" \
-          -p "$LUMINA_PORT" \
-          -D "$DATA_PATH" \
-          -l "$LUMINA_LOG_PATH" \
-          -c "${CONFIG_PATH}/lumina.crt" \
-          -k "${CONFIG_PATH}/lumina.key" \
-          -L "${INSTALL_PATH}/lumina_server.hexlic"
+         DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+         USER=lumina LOGNAME=lumina \
+        gosu lumina:lumina "${INSTALL_PATH}/lumina_server" "${server_args[@]}"
   ) &
   SERVER_PID=$!
 
